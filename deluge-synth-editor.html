@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deluge Synth Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #ff6b35;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(145deg, #ff6b35, #d65628);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(255, 107, 53, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            border-bottom: 2px solid #333;
+        }
+
+        .tab {
+            background: #2a2a2a;
+            padding: 12px 25px;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .tab:hover {
+            background: #333;
+        }
+
+        .tab.active {
+            background: #ff6b35;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 0 8px 8px 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section {
+            margin-bottom: 35px;
+        }
+
+        .section-title {
+            color: #ff6b35;
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #444;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 25px;
+        }
+
+        .control-group {
+            text-align: center;
+        }
+
+        .control-label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #b0b0b0;
+            font-size: 0.9em;
+        }
+
+        /* Knob styling */
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .knob {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #4a4a4a, #1a1a1a);
+            position: relative;
+            box-shadow:
+                inset 0 -4px 8px rgba(0,0,0,0.6),
+                inset 0 4px 8px rgba(255,255,255,0.1),
+                0 4px 8px rgba(0,0,0,0.4);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .knob::after {
+            content: '';
+            position: absolute;
+            width: 4px;
+            height: 32px;
+            background: linear-gradient(180deg, #ff6b35, #ff8855);
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 2px;
+            box-shadow: 0 0 6px rgba(255, 107, 53, 0.6);
+        }
+
+        .knob-value {
+            margin-top: 8px;
+            font-size: 0.85em;
+            color: #ff6b35;
+            font-weight: bold;
+        }
+
+        /* Slider styling */
+        .slider-container {
+            padding: 10px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #333, #666);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #ff6b35, #d65628);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #ff6b35, #d65628);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        .slider-value {
+            text-align: center;
+            margin-top: 5px;
+            font-size: 0.85em;
+            color: #ff6b35;
+            font-weight: bold;
+        }
+
+        /* Select styling */
+        select, input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            background: #1a1a1a;
+            border: 2px solid #444;
+            border-radius: 5px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #ff6b35;
+        }
+
+        /* Envelope display */
+        .envelope-display {
+            width: 100%;
+            height: 120px;
+            background: #1a1a1a;
+            border: 2px solid #444;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        /* Modulation matrix */
+        .mod-matrix {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .mod-row {
+            display: grid;
+            grid-template-columns: 150px 150px 150px 100px 50px;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 5px;
+        }
+
+        .mod-row button {
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+
+        .file-input {
+            margin: 15px 0;
+        }
+
+        .preset-name {
+            width: 300px;
+            margin-right: 15px;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            font-weight: 600;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .notification.error {
+            background: linear-gradient(145deg, #f44336, #da190b);
+        }
+
+        /* Modal dialog for directory browser */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #444;
+        }
+
+        .modal-title {
+            font-size: 1.5em;
+            color: #ff6b35;
+        }
+
+        .close-btn {
+            background: none;
+            color: #888;
+            font-size: 1.5em;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .file-item {
+            padding: 12px;
+            background: #1a1a1a;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-item:hover {
+            background: #333;
+            transform: translateX(5px);
+        }
+
+        .file-item.folder {
+            color: #ff6b35;
+            font-weight: bold;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="logo-deluge@2x.png" alt="Deluge Logo" style="max-width: 200px; height: auto;">
+        </div>
+        <h1>Synth Editor</h1>
+
+        <div style="text-align: center; margin-bottom: 15px;">
+            <label style="color: #888; font-size: 0.9em; cursor: pointer;">
+                <input type="checkbox" id="experimentalToggle" onchange="toggleExperimental()" style="margin-right: 8px;">
+                Show Experimental Features (SYSEX - may not work)
+            </label>
+        </div>
+
+        <div class="actions">
+            <input type="text" id="presetName" class="preset-name" placeholder="Preset Name" value="My Synth">
+            <span id="sysexButtons" style="display: none;">
+                <button id="connectBtn" onclick="connectToDeluge()">🔌 Connect to Deluge</button>
+                <button id="sendToDelugeBtn" onclick="sendToDeluge()" disabled>📤 Send to Deluge</button>
+                <button id="loadFromDelugeBtn" onclick="showDelugeBrowser()" disabled>📥 Load from Deluge</button>
+            </span>
+            <button onclick="loadXML()">Load XML File</button>
+            <button onclick="downloadXML()">Download XML</button>
+            <button onclick="randomizePreset()">🎲 Randomize</button>
+            <button onclick="resetToDefault()">Reset to Default</button>
+        </div>
+
+        <div id="connectionStatus" style="text-align: center; margin-bottom: 15px; color: #888; font-size: 0.9em; display: none;">
+            Not connected to Deluge
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('general')">General</div>
+            <div class="tab" onclick="showTab('oscillators')">Oscillators</div>
+            <div class="tab" onclick="showTab('envelopes')">Envelopes</div>
+            <div class="tab" onclick="showTab('filters')">Filters</div>
+            <div class="tab" onclick="showTab('lfos')">LFOs</div>
+            <div class="tab" onclick="showTab('effects')">Effects</div>
+            <div class="tab" onclick="showTab('modulation')">Modulation</div>
+        </div>
+
+        <div id="general" class="tab-content active">
+            <div class="section">
+                <h2 class="section-title">Sound Settings</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Polyphonic</label>
+                        <select id="polyphonic">
+                            <option value="poly">Poly</option>
+                            <option value="mono">Mono</option>
+                            <option value="auto">Auto</option>
+                            <option value="legato">Legato</option>
+                            <option value="choke">Choke</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Voice Priority</label>
+                        <select id="voicePriority">
+                            <option value="0">Low</option>
+                            <option value="1" selected>Medium</option>
+                            <option value="2">High</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Synth Mode</label>
+                        <select id="mode">
+                            <option value="subtractive" selected>Subtractive</option>
+                            <option value="fm">FM</option>
+                            <option value="ringmod">Ring Mod</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Transpose</label>
+                        <input type="number" id="transpose" value="0" min="-96" max="96">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Max Voices</label>
+                        <input type="number" id="maxVoices" value="8" min="1" max="16">
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Unison</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Number</label>
+                        <input type="number" id="unisonNum" value="1" min="1" max="8">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Detune</label>
+                        <input type="number" id="unisonDetune" value="8" min="0" max="50">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Spread</label>
+                        <input type="number" id="unisonSpread" value="0" min="0" max="100">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="oscillators" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Oscillator 1</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Type</label>
+                        <select id="osc1Type">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="square" selected>Square</option>
+                            <option value="analogSquare">Analog Square</option>
+                            <option value="saw">Saw</option>
+                            <option value="analogSaw">Analog Saw</option>
+                            <option value="wavetable">Wavetable</option>
+                            <option value="sample">Sample</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Transpose</label>
+                        <input type="number" id="osc1Transpose" value="0" min="-48" max="48">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Cents</label>
+                        <input type="number" id="osc1Cents" value="0" min="-100" max="100">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Retrig Phase</label>
+                        <input type="number" id="osc1RetrigPhase" value="-1" min="-1" max="360">
+                    </div>
+                </div>
+                <div class="controls-grid" style="margin-top: 20px;">
+                    <div class="control-group" style="grid-column: span 2;">
+                        <label class="control-label">Sample/Wavetable File (optional)</label>
+                        <input type="text" id="osc1File" placeholder="SAMPLES/your-sample.wav">
+                    </div>
+                </div>
+                <div class="controls-grid" style="margin-top: 20px;">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Volume</label>
+                        <div class="knob" id="oscAVolumeKnob" data-param="oscAVolume" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="oscAVolumeValue">0 dB</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Pulse Width</label>
+                        <div class="knob" id="oscAPulseWidthKnob" data-param="oscAPulseWidth" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="oscAPulseWidthValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Wavetable Pos</label>
+                        <div class="knob" id="oscAWavetablePositionKnob" data-param="oscAWavetablePosition" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="oscAWavetablePositionValue">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Oscillator 2</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Type</label>
+                        <select id="osc2Type">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="square" selected>Square</option>
+                            <option value="analogSquare">Analog Square</option>
+                            <option value="saw">Saw</option>
+                            <option value="analogSaw">Analog Saw</option>
+                            <option value="wavetable">Wavetable</option>
+                            <option value="sample">Sample</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Transpose</label>
+                        <input type="number" id="osc2Transpose" value="-12" min="-48" max="48">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Cents</label>
+                        <input type="number" id="osc2Cents" value="0" min="-100" max="100">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Retrig Phase</label>
+                        <input type="number" id="osc2RetrigPhase" value="-1" min="-1" max="360">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Osc Sync</label>
+                        <select id="osc2Sync">
+                            <option value="0" selected>Off</option>
+                            <option value="1">On</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="controls-grid" style="margin-top: 20px;">
+                    <div class="control-group" style="grid-column: span 2;">
+                        <label class="control-label">Sample/Wavetable File (optional)</label>
+                        <input type="text" id="osc2File" placeholder="SAMPLES/your-sample.wav">
+                    </div>
+                </div>
+                <div class="controls-grid" style="margin-top: 20px;">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Volume</label>
+                        <div class="knob" id="oscBVolumeKnob" data-param="oscBVolume" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="oscBVolumeValue">-50 dB</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Pulse Width</label>
+                        <div class="knob" id="oscBPulseWidthKnob" data-param="oscBPulseWidth" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="oscBPulseWidthValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Wavetable Pos</label>
+                        <div class="knob" id="oscBWavetablePositionKnob" data-param="oscBWavetablePosition" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="oscBWavetablePositionValue">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Noise</h2>
+                <div class="controls-grid">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Noise Volume</label>
+                        <div class="knob" id="noiseVolumeKnob" data-param="noiseVolume" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="noiseVolumeValue">-50 dB</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">FM Synthesis (when mode = FM)</h2>
+                <div class="controls-grid">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Modulator 1 Amount</label>
+                        <div class="knob" id="modulator1AmountKnob" data-param="modulator1Amount" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="modulator1AmountValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Modulator 1 Feedback</label>
+                        <div class="knob" id="modulator1FeedbackKnob" data-param="modulator1Feedback" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="modulator1FeedbackValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Modulator 2 Amount</label>
+                        <div class="knob" id="modulator2AmountKnob" data-param="modulator2Amount" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="modulator2AmountValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Modulator 2 Feedback</label>
+                        <div class="knob" id="modulator2FeedbackKnob" data-param="modulator2Feedback" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="modulator2FeedbackValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Carrier 1 Feedback</label>
+                        <div class="knob" id="carrier1FeedbackKnob" data-param="carrier1Feedback" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="carrier1FeedbackValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Carrier 2 Feedback</label>
+                        <div class="knob" id="carrier2FeedbackKnob" data-param="carrier2Feedback" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="carrier2FeedbackValue">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="envelopes" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Envelope 1 (Amplitude)</h2>
+                <canvas id="env1Canvas" class="envelope-display"></canvas>
+                <div class="controls-grid">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Attack</label>
+                        <div class="knob" id="env1AttackKnob" data-param="env1Attack" data-min="0" data-max="50" data-env="1"></div>
+                        <div class="knob-value" id="env1AttackValue">0 ms</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Decay</label>
+                        <div class="knob" id="env1DecayKnob" data-param="env1Decay" data-min="0" data-max="50" data-env="1"></div>
+                        <div class="knob-value" id="env1DecayValue">25 ms</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Sustain</label>
+                        <div class="knob" id="env1SustainKnob" data-param="env1Sustain" data-min="0" data-max="50" data-env="1"></div>
+                        <div class="knob-value" id="env1SustainValue">50</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Release</label>
+                        <div class="knob" id="env1ReleaseKnob" data-param="env1Release" data-min="0" data-max="50" data-env="1"></div>
+                        <div class="knob-value" id="env1ReleaseValue">10 ms</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Envelope 2 (Modulation)</h2>
+                <canvas id="env2Canvas" class="envelope-display"></canvas>
+                <div class="controls-grid">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Attack</label>
+                        <div class="knob" id="env2AttackKnob" data-param="env2Attack" data-min="0" data-max="50" data-env="2"></div>
+                        <div class="knob-value" id="env2AttackValue">25 ms</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Decay</label>
+                        <div class="knob" id="env2DecayKnob" data-param="env2Decay" data-min="0" data-max="50" data-env="2"></div>
+                        <div class="knob-value" id="env2DecayValue">25 ms</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Sustain</label>
+                        <div class="knob" id="env2SustainKnob" data-param="env2Sustain" data-min="-25" data-max="25" data-env="2"></div>
+                        <div class="knob-value" id="env2SustainValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Release</label>
+                        <div class="knob" id="env2ReleaseKnob" data-param="env2Release" data-min="0" data-max="50" data-env="2"></div>
+                        <div class="knob-value" id="env2ReleaseValue">25 ms</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Envelope 3 (Modulation)</h2>
+                <canvas id="env3Canvas" class="envelope-display"></canvas>
+                <div class="controls-grid">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Attack</label>
+                        <div class="knob" id="env3AttackKnob" data-param="env3Attack" data-min="0" data-max="50" data-env="3"></div>
+                        <div class="knob-value" id="env3AttackValue">25 ms</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Decay</label>
+                        <div class="knob" id="env3DecayKnob" data-param="env3Decay" data-min="0" data-max="50" data-env="3"></div>
+                        <div class="knob-value" id="env3DecayValue">25 ms</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Sustain</label>
+                        <div class="knob" id="env3SustainKnob" data-param="env3Sustain" data-min="-25" data-max="25" data-env="3"></div>
+                        <div class="knob-value" id="env3SustainValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Release</label>
+                        <div class="knob" id="env3ReleaseKnob" data-param="env3Release" data-min="0" data-max="50" data-env="3"></div>
+                        <div class="knob-value" id="env3ReleaseValue">25 ms</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Envelope 4 (Modulation)</h2>
+                <canvas id="env4Canvas" class="envelope-display"></canvas>
+                <div class="controls-grid">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Attack</label>
+                        <div class="knob" id="env4AttackKnob" data-param="env4Attack" data-min="0" data-max="50" data-env="4"></div>
+                        <div class="knob-value" id="env4AttackValue">25 ms</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Decay</label>
+                        <div class="knob" id="env4DecayKnob" data-param="env4Decay" data-min="0" data-max="50" data-env="4"></div>
+                        <div class="knob-value" id="env4DecayValue">25 ms</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Sustain</label>
+                        <div class="knob" id="env4SustainKnob" data-param="env4Sustain" data-min="-25" data-max="25" data-env="4"></div>
+                        <div class="knob-value" id="env4SustainValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Release</label>
+                        <div class="knob" id="env4ReleaseKnob" data-param="env4Release" data-min="0" data-max="50" data-env="4"></div>
+                        <div class="knob-value" id="env4ReleaseValue">25 ms</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="filters" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Low Pass Filter</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Mode</label>
+                        <select id="lpfMode">
+                            <option value="12dB">12dB</option>
+                            <option value="24dB" selected>24dB</option>
+                            <option value="24dBDrive">24dB Drive</option>
+                            <option value="SVF">SVF</option>
+                        </select>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Frequency</label>
+                        <div class="knob" id="lpfFrequencyKnob" data-param="lpfFrequency" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="lpfFrequencyValue">20 kHz</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Resonance</label>
+                        <div class="knob" id="lpfResonanceKnob" data-param="lpfResonance" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="lpfResonanceValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Morph</label>
+                        <div class="knob" id="lpfMorphKnob" data-param="lpfMorph" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="lpfMorphValue">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">High Pass Filter</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Mode</label>
+                        <select id="hpfMode">
+                            <option value="12dB">12dB</option>
+                            <option value="24dB">24dB</option>
+                            <option value="HPLadder" selected>HP Ladder</option>
+                        </select>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Frequency</label>
+                        <div class="knob" id="hpfFrequencyKnob" data-param="hpfFrequency" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="hpfFrequencyValue">0 Hz</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Resonance</label>
+                        <div class="knob" id="hpfResonanceKnob" data-param="hpfResonance" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="hpfResonanceValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Morph</label>
+                        <div class="knob" id="hpfMorphKnob" data-param="hpfMorph" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="hpfMorphValue">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Filter Routing</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Route</label>
+                        <select id="filterRoute">
+                            <option value="HPF2LPF">HPF to LPF</option>
+                            <option value="LPF2HPF">LPF to HPF</option>
+                            <option value="PARALLEL">Parallel</option>
+                            <option value="H2L">H2L</option>
+                        </select>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Wave Fold</label>
+                        <div class="knob" id="waveFoldKnob" data-param="waveFold" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="waveFoldValue">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="lfos" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">LFO 1 (Global)</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Type</label>
+                        <select id="lfo1Type">
+                            <option value="sine">Sine</option>
+                            <option value="triangle" selected>Triangle</option>
+                            <option value="square">Square</option>
+                            <option value="saw">Saw</option>
+                            <option value="sampleAndHold">Sample & Hold</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Level</label>
+                        <input type="number" id="lfo1SyncLevel" value="0" min="0" max="23">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Type</label>
+                        <select id="lfo1SyncType">
+                            <option value="0" selected>Triplets/Dotted</option>
+                            <option value="1">Even</option>
+                        </select>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Rate</label>
+                        <div class="knob" id="lfo1RateKnob" data-param="lfo1Rate" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="lfo1RateValue">10 Hz</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">LFO 2 (Local)</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Type</label>
+                        <select id="lfo2Type">
+                            <option value="sine">Sine</option>
+                            <option value="triangle" selected>Triangle</option>
+                            <option value="square">Square</option>
+                            <option value="saw">Saw</option>
+                            <option value="sampleAndHold">Sample & Hold</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Level</label>
+                        <input type="number" id="lfo2SyncLevel" value="0" min="0" max="23">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Type</label>
+                        <select id="lfo2SyncType">
+                            <option value="0" selected>Triplets/Dotted</option>
+                            <option value="1">Even</option>
+                        </select>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Rate</label>
+                        <div class="knob" id="lfo2RateKnob" data-param="lfo2Rate" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="lfo2RateValue">0 Hz</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="effects" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Master</h2>
+                <div class="controls-grid">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Volume</label>
+                        <div class="knob" id="volumeKnob" data-param="volume" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="volumeValue">0 dB</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Pan</label>
+                        <div class="knob" id="panKnob" data-param="pan" data-min="-25" data-max="25"></div>
+                        <div class="knob-value" id="panValue">Center</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Portamento</label>
+                        <div class="knob" id="portamentoKnob" data-param="portamento" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="portamentoValue">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Modulation FX</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Type</label>
+                        <select id="modFXType">
+                            <option value="none" selected>None</option>
+                            <option value="flanger">Flanger</option>
+                            <option value="chorus">Chorus</option>
+                            <option value="phaser">Phaser</option>
+                            <option value="StereoChorus">Stereo Chorus</option>
+                            <option value="warble">Warble</option>
+                        </select>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Rate</label>
+                        <div class="knob" id="modFXRateKnob" data-param="modFXRate" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="modFXRateValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Depth</label>
+                        <div class="knob" id="modFXDepthKnob" data-param="modFXDepth" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="modFXDepthValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Offset</label>
+                        <div class="knob" id="modFXOffsetKnob" data-param="modFXOffset" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="modFXOffsetValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Feedback</label>
+                        <div class="knob" id="modFXFeedbackKnob" data-param="modFXFeedback" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="modFXFeedbackValue">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Delay</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Ping Pong</label>
+                        <select id="delayPingPong">
+                            <option value="0">Off</option>
+                            <option value="1" selected>On</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Analog</label>
+                        <select id="delayAnalog">
+                            <option value="0">Off</option>
+                            <option value="1" selected>On</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Level</label>
+                        <input type="number" id="delaySyncLevel" value="7" min="0" max="23">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Type</label>
+                        <select id="delaySyncType">
+                            <option value="0" selected>Triplets/Dotted</option>
+                            <option value="1">Even</option>
+                        </select>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Rate</label>
+                        <div class="knob" id="delayRateKnob" data-param="delayRate" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="delayRateValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Feedback</label>
+                        <div class="knob" id="delayFeedbackKnob" data-param="delayFeedback" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="delayFeedbackValue">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Reverb</h2>
+                <div class="controls-grid">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Amount</label>
+                        <div class="knob" id="reverbAmountKnob" data-param="reverbAmount" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="reverbAmountValue">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Equalizer</h2>
+                <div class="controls-grid">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Bass</label>
+                        <div class="knob" id="bassKnob" data-param="bass" data-min="-25" data-max="25"></div>
+                        <div class="knob-value" id="bassValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Bass Freq</label>
+                        <div class="knob" id="bassFrequencyKnob" data-param="bassFrequency" data-min="-25" data-max="25"></div>
+                        <div class="knob-value" id="bassFrequencyValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Treble</label>
+                        <div class="knob" id="trebleKnob" data-param="treble" data-min="-25" data-max="25"></div>
+                        <div class="knob-value" id="trebleValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Treble Freq</label>
+                        <div class="knob" id="trebleFrequencyKnob" data-param="trebleFrequency" data-min="-25" data-max="25"></div>
+                        <div class="knob-value" id="trebleFrequencyValue">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Distortion</h2>
+                <div class="controls-grid">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Sample Rate Reduction</label>
+                        <div class="knob" id="sampleRateReductionKnob" data-param="sampleRateReduction" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="sampleRateReductionValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Bit Crush</label>
+                        <div class="knob" id="bitCrushKnob" data-param="bitCrush" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="bitCrushValue">0</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Stutter Rate</label>
+                        <div class="knob" id="stutterRateKnob" data-param="stutterRate" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="stutterRateValue">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Sidechain</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Sync Level</label>
+                        <input type="number" id="sidechainSyncLevel" value="6" min="0" max="23">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Type</label>
+                        <select id="sidechainSyncType">
+                            <option value="0" selected>Triplets/Dotted</option>
+                            <option value="1">Even</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Attack</label>
+                        <input type="number" id="sidechainAttack" value="327244" min="0" max="2000000">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Release</label>
+                        <input type="number" id="sidechainRelease" value="936" min="0" max="50000">
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Shape</label>
+                        <div class="knob" id="compressorShapeKnob" data-param="compressorShape" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="compressorShapeValue">25</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="modulation" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Patch Cables (Modulation Matrix)</h2>
+                <button onclick="addPatchCable()" style="margin-bottom: 15px;">+ Add Patch Cable</button>
+                <div id="patchCablesContainer" class="mod-matrix">
+                    <!-- Patch cables will be added here dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <input type="file" id="xmlFileInput" style="display:none" accept=".xml,.XML">
+        <textarea id="xmlOutput" style="display:none"></textarea>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <!-- Directory Browser Modal -->
+    <div id="browserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Browse Deluge Presets</div>
+                <button class="close-btn" onclick="closeBrowser()">✕</button>
+            </div>
+            <div id="currentPath" style="margin-bottom: 15px; color: #888; font-family: monospace;">
+                /SYNTHS/
+            </div>
+            <div id="fileList" class="file-list">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="deluge-synth-editor.js"></script>
+</body>
+</html>
+

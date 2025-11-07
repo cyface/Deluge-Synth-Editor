@@ -1,0 +1,18 @@
+# Test/example XML files
+test_*.XML
+*.xml
+*.XML
+
+# macOS
+.DS_Store
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
