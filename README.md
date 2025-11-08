@@ -1,15 +1,10 @@
 # Deluge Synth Editor
 
-A comprehensive web-based synth preset editor for the Synthstrom Deluge, featuring graphical controls and full parameter editing.
+A web-based synth preset editor for the Synthstrom Deluge, featuring graphical controls and full parameter editing. Essentially just allows you to create, load, edit and export synth XML files with a simple web UI. 
+
+## WARNING - not that this will break anything, but it has gone through very little testing. 
 
 ## Features
-
-- **🔌 Direct Deluge Connection via SYSEX** (EXPERIMENTAL):
-  - Hidden by default - enable via "Show Experimental Features" checkbox
-  - **May not work yet** - JSON SYSEX file API appears incomplete in firmware
-  - If working: Send presets directly to Deluge SD card via USB Port 3
-  - If working: Browse and load presets from your Deluge's SD card
-  - **Recommended**: Use standard download/copy workflow instead
 
 - **Complete Parameter Coverage**: Edit all Deluge synth parameters including:
   - Oscillators (with sample/wavetable file support)
@@ -30,7 +25,6 @@ A comprehensive web-based synth preset editor for the Synthstrom Deluge, featuri
   - Load existing Deluge synth presets from files
   - Generate compatible XML files
   - Download presets to your computer
-  - **OR send directly to Deluge via SYSEX!**
 
 ## Usage
 
@@ -41,8 +35,6 @@ A comprehensive web-based synth preset editor for the Synthstrom Deluge, featuri
 3. Click "Download XML" to save your preset
 4. Copy the XML file to your Deluge SD card (`SYNTHS/` folder)
 5. Load it on your Deluge!
-
-**Note:** SYSEX features (direct connection) are experimental and hidden by default. Enable the checkbox if you want to try them.
 
 ### Loading Presets
 
@@ -61,7 +53,7 @@ A comprehensive web-based synth preset editor for the Synthstrom Deluge, featuri
 
 - **General**: Polyphonic mode, voice priority, synth mode, unison
 - **Oscillators**: OSC1, OSC2, noise generator, sample/wavetable files, FM synthesis parameters (modulators & carriers)
-- **Envelopes**: ENV1-4 with **live animated visual displays** - adjust knobs and watch the envelope shape update in real-time
+- **Envelopes**: ENV1-4 with **live animated visual displays**
   - ENV1: Amplitude envelope (unipolar sustain 0-50)
   - ENV2-4: Modulation envelopes (bipolar sustain -25 to +25)
 - **Filters**: LPF/HPF with frequency, resonance, morphing, and routing
@@ -83,23 +75,7 @@ A comprehensive web-based synth preset editor for the Synthstrom Deluge, featuri
 - Example: `SAMPLES/my-sample.wav`
 - Path is relative to the Deluge SD card root
 
-### Experimental: Direct SYSEX Connection (Advanced Users Only)
-
-**⚠️ Warning:** The JSON SYSEX file API appears to be incomplete in current firmware. Use at your own risk!
-
-**To Enable:**
-1. Check the "Show Experimental Features" checkbox at the top
-2. SYSEX buttons will appear
-
-**If you want to try it:**
-1. Flash firmware with `ENABLE_SYSEX_LOAD=ON` (build provided: `deluge-sysex-enabled.bin`)
-2. Enable "Dev Sysex" in Deluge: Settings → Community Features → Dev Sysex → ON
-3. Connect via USB Port 3
-4. Try the connection buttons (may timeout - feature may not be fully implemented)
-
-**Recommended:** Just use the standard download/copy workflow - it's fast and reliable!
-
-### Saving Presets (Recommended Method)
+### Saving Presets
 
 1. Enter a preset name
 2. Click "Download XML"
@@ -126,7 +102,6 @@ A comprehensive web-based synth preset editor for the Synthstrom Deluge, featuri
 - **DX7 Editing**: Due to complexity, DX7 patch editing is not included
 - **Kit Presets**: This editor is for synth presets only, not kits
 - **MIDI Configuration**: MIDI setup is not included
-- **Arpeggiator**: Basic arpeggiator settings only
 
 ## Browser Compatibility
 
@@ -138,38 +113,7 @@ A comprehensive web-based synth preset editor for the Synthstrom Deluge, featuri
 - **Firefox 88+** (Web MIDI requires enabling in about:config)
 - **Safari 14+** (Web MIDI experimental)
 
-**Note:** SYSEX features (direct Deluge connection) require Web MIDI API support. All browsers support basic XML import/export.
-
-No internet connection required - runs entirely in your browser!
-
-## File Structure
-
-```
-synth-editor/
-├── deluge-synth-editor.html    # Main HTML file
-├── deluge-synth-editor.js      # JavaScript logic
-├── logo-deluge@2x.png         # Deluge logo
-└── README.md                   # This file
-```
-
-## Tips
-
-- **Default Workflow**: Download XML → Copy to SD card → Load on Deluge (simple and reliable!)
-- Use the **"🎲 Randomize"** button to instantly create random presets - great for happy accidents and inspiration!
-  - Note: General tab (poly mode, synth mode, unison) is NOT randomized - set these first, then randomize the rest
-  - Oscillator types are limited to basic waveforms (no wavetable/sample types that require file paths)
-- Use the "Reset to Default" button to start with a clean slate
-- Hover over knobs to see their current values
-- **Envelope Animation**: Drag any envelope knob (Attack, Decay, Sustain, Release) and watch the envelope curve animate in real-time!
-- All 4 envelopes support different sustain ranges:
-  - ENV1 (amplitude): 0 to 50 (unipolar)
-  - ENV2-4 (modulation): -25 to +25 (bipolar)
-- Use Envelope 3 and 4 as modulation sources in the Modulation tab
-- **FM Synthesis**: Set synth mode to "FM" in the General tab, then use the FM parameters in the Oscillators tab:
-  - Modulator 1 & 2: Amount and Feedback
-  - Carrier 1 & 2: Feedback controls
-- **Workflow**: Create/edit preset → Send to Deluge → Load on Deluge → Tweak → Send back!
-- Test presets on your Deluge to hear the results!
+**Note:** There is some code I used for testing to allow SYSEX but this doesn't seem to work yet, despite being able to connect to Deluge. Commented out for now.
 
 ## License
 
