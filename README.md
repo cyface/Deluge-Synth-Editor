@@ -1,4 +1,4 @@
-# Deluge Synth Editor
+# Deluge Browser-based Synth Editor
 
 A web-based synth preset editor for the Synthstrom Deluge, featuring graphical controls and full parameter editing. Essentially just allows you to create, load, edit and export synth XML files with a simple web UI. 
 
