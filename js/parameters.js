@@ -181,7 +181,8 @@ let passThroughData = {
 
 // Modulation sources and destinations
 const modSources = [
-    'none', 'lfo1', 'lfo2', 'envelope1', 'envelope2', 'envelope3', 'envelope4',
+    'none', 'lfo1', 'lfo2', 'lfo3', 'lfo4', 
+    'envelope1', 'envelope2', 'envelope3', 'envelope4',
     'velocity', 'note', 'aftertouch', 'x', 'y',
     'compressor', 'random'
 ];
@@ -193,7 +194,7 @@ const modDestinations = [
     'noiseVolume',
     'lpfFrequency', 'lpfResonance',
     'hpfFrequency', 'hpfResonance',
-    'lfo1Rate', 'lfo2Rate',
+    'lfo1Rate', 'lfo2Rate', 'lfo3Rate', 'lfo4Rate',
     'modFXRate', 'modFXDepth',
     'delayRate', 'delayFeedback',
     'reverbAmount',

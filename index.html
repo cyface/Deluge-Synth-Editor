@@ -1011,6 +1011,70 @@
                     </div>
                 </div>
             </div>
+
+            <div class="section">
+                <h2 class="section-title">LFO 3 (Community FW)</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Type</label>
+                        <select id="lfo3Type">
+                            <option value="sine">Sine</option>
+                            <option value="triangle" selected>Triangle</option>
+                            <option value="square">Square</option>
+                            <option value="saw">Saw</option>
+                            <option value="sampleAndHold">Sample & Hold</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Level</label>
+                        <input type="number" id="lfo3SyncLevel" value="0" min="0" max="23">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Type</label>
+                        <select id="lfo3SyncType">
+                            <option value="0" selected>Triplets/Dotted</option>
+                            <option value="1">Even</option>
+                        </select>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Rate</label>
+                        <div class="knob" id="lfo3RateKnob" data-param="lfo3Rate" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="lfo3RateValue">0 Hz</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">LFO 4 (Community FW)</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Type</label>
+                        <select id="lfo4Type">
+                            <option value="sine">Sine</option>
+                            <option value="triangle" selected>Triangle</option>
+                            <option value="square">Square</option>
+                            <option value="saw">Saw</option>
+                            <option value="sampleAndHold">Sample & Hold</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Level</label>
+                        <input type="number" id="lfo4SyncLevel" value="0" min="0" max="23">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Type</label>
+                        <select id="lfo4SyncType">
+                            <option value="0" selected>Triplets/Dotted</option>
+                            <option value="1">Even</option>
+                        </select>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Rate</label>
+                        <div class="knob" id="lfo4RateKnob" data-param="lfo4Rate" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="lfo4RateValue">0 Hz</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div id="effects" class="tab-content">
