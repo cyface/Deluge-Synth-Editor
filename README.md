@@ -150,7 +150,6 @@ Preserved when loading and saving files:
 |---------|------------------|-------------------|----------------|
 | **Offline XML Editing** | ✅ Full Support | ✅ Full Support | ✅ Full Support |
 | **SYSEX File Transfer** | ✅ Full Support | ✅ Full Support | ❌ Not Available |
-| **LFO3/LFO4** | ❌ Not Available | ✅ Supported | ❌ Not Available |
 | **Extended Parameters** | Basic | ✅ Full Community Features | Basic |
 
 **If you have older firmware:**
@@ -192,26 +191,8 @@ Preserved when loading and saving files:
 ## Known Limitations
 
 - **No Real-Time Control**: Changes require manually reloading the patch on Deluge (firmware limitation)
-- **No LFO3/4 UI**: LFO3 and LFO4 are written to XML and preserved, but there's no UI editor yet
 - **Sample Features**: Advanced sample parameters (loop points, time stretch) are preserved but not editable
-- **First Load Slow**: Initial directory browsing can take a few seconds with many files (subsequent loads are cached)
-
-## Troubleshooting
-
-### SYSEX Connection Issues
-- **Firmware too old?** SYSEX requires Community FW 1.3+ or Official FW 4.0+. You can still use offline XML workflow!
-- **Can't connect?** Check USB Port 3 (rightmost port), use Chrome/Edge, grant MIDI permissions
-- **Session timeout?** Connection will still work - try browsing or sending a file
-
-### File Browser Issues  
-- **Files missing?** Click **"🔄 Refresh"** - directories with 25+ files use pagination
-- **Can't see new files?** Refresh the directory after sending files
-- **System files showing?** Mac/Windows hidden files (`.DS_Store`, `._*`) are automatically filtered
-
-### Sample/Playback Issues
-- **Sample not playing?** Check file path, verify oscillator type is "sample", reload patch on Deluge
-- **Can't find sample?** Use 📁 browse button (SYSEX mode) to navigate `/SAMPLES/` folder
-- **Wrong pitch?** Check `transpose` and `cents` on oscillator tab
+- **First Load**: Initial directory browsing can take a few seconds with many files (subsequent loads are cached)
 
 ## License
 
@@ -220,9 +201,9 @@ MIT License - This editor is provided as-is for use with the Synthstrom Audible 
 ## Credits
 
 - Created for the Deluge community
+- Come with no guarantess as is not fully tested 
 - SYSEX implementation based on [DEx (Deluge Extensions)](https://github.com/silicakes/deluge-extensions) by silicakes
 - Complements the [Deluge Community Firmware](https://github.com/SynthstromAudible/DelugeFirmware) project
 - Special thanks to the Synthstrom Deluge community for testing and feedback
 
 **Not affiliated with Synthstrom Audible Limited.**
-
