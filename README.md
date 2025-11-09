@@ -30,7 +30,7 @@ A web-based synth preset editor for the Synthstrom Deluge, featuring graphical c
 
 ### Getting Started
 
-1. Open `deluge-synth-editor.html` in your web browser (any modern browser)
+1. Open `index.html` in your web browser (any modern browser)
 2. Edit parameters using the tabbed interface (or click "🎲 Randomize" for instant inspiration!)
 3. Click "Download XML" to save your preset
 4. Copy the XML file to your Deluge SD card (`SYNTHS/` folder)
