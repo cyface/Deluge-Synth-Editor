@@ -13,6 +13,7 @@ let pendingResponses = new Map(); // Map of messageId -> callback
 let currentBrowserPath = '/SYNTHS/';
 let currentSampleBrowserPath = '/SAMPLES/';
 let currentSampleOscTarget = null; // Which oscillator (1 or 2) we're browsing for
+let currentSampleBrowserMode = 'sample'; // 'sample' or 'dx7'
 let originalLoadedFilepath = null; // Track the full original filepath when loading from Deluge
 let directoryCache = new Map(); // Cache directory listings for faster browsing
 let cacheTimestamp = new Map(); // Track when cache entries were created

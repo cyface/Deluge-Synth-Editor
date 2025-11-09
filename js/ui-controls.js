@@ -354,22 +354,34 @@ function setupOscillatorTypeListeners() {
     
     if (osc1Type) {
         osc1Type.addEventListener('change', () => {
+            console.log('🔄 OSC1 Type changed to:', osc1Type.value);
             const isDX7 = osc1Type.value === 'dx7';
-            document.getElementById('osc1DX7Container').style.display = isDX7 ? 'block' : 'none';
+            const container = document.getElementById('osc1DX7Container');
+            if (container) {
+                container.style.display = isDX7 ? 'block' : 'none';
+            }
             if (isDX7) {
+                console.log('   Calling initializeDX7UI(1)...');
                 initializeDX7UI(1);
             }
         });
+        console.log('✅ OSC1 type change listener added');
     }
     
     if (osc2Type) {
         osc2Type.addEventListener('change', () => {
+            console.log('🔄 OSC2 Type changed to:', osc2Type.value);
             const isDX7 = osc2Type.value === 'dx7';
-            document.getElementById('osc2DX7Container').style.display = isDX7 ? 'block' : 'none';
+            const container = document.getElementById('osc2DX7Container');
+            if (container) {
+                container.style.display = isDX7 ? 'block' : 'none';
+            }
             if (isDX7) {
+                console.log('   Calling initializeDX7UI(2)...');
                 initializeDX7UI(2);
             }
         });
+        console.log('✅ OSC2 type change listener added');
     }
 }
 

@@ -239,11 +239,16 @@ function hexToVoiceData(hexString) {
  * Initialize DX7 UI for an oscillator
  */
 function initializeDX7UI(oscNum) {
+    console.log('🎹 Initializing DX7 UI for OSC', oscNum);
     const container = document.getElementById(`osc${oscNum}DX7Container`);
-    if (!container) return;
+    if (!container) {
+        console.error('❌ DX7 container not found for OSC', oscNum);
+        return;
+    }
     
     // Show DX7 container
     container.style.display = 'block';
+    console.log('✅ DX7 container shown');
     
     // Update display if we have DX7 data
     updateDX7Display(oscNum);
@@ -256,23 +261,14 @@ function initializeDX7UI(oscNum) {
  * Setup event listeners for DX7 controls
  */
 function setupDX7EventListeners(oscNum) {
-    // Load local .syx file
-    const fileInput = document.getElementById(`osc${oscNum}DX7FileInput`);
-    if (fileInput) {
-        fileInput.addEventListener('change', (e) => loadDX7SysexFile(e, oscNum));
-    }
-    
-    // Browse Deluge SD card
-    const browseBtn = document.getElementById(`osc${oscNum}DX7BrowseBtn`);
-    if (browseBtn) {
-        browseBtn.addEventListener('click', () => browseDX7FromDeluge(oscNum));
-    }
+    console.log('🔧 Setting up DX7 event listeners for OSC', oscNum);
     
     // Engine mode dropdown
     const engineSelect = document.getElementById(`osc${oscNum}DX7EngineMode`);
     if (engineSelect) {
         engineSelect.addEventListener('change', (e) => {
             currentState[`osc${oscNum}DX7EngineMode`] = e.target.value;
+            console.log('   Engine mode changed to:', e.target.value);
         });
     }
     
@@ -284,44 +280,37 @@ function setupDX7EventListeners(oscNum) {
             const value = e.target.value;
             currentState[`osc${oscNum}DX7RandomDetune`] = value;
             detuneValue.textContent = value;
+            console.log('   Random detune changed to:', value);
         });
     }
-}
-
-/**
- * Load DX7 .syx file from local filesystem
- */
-async function loadDX7SysexFile(event, oscNum) {
-    const file = event.target.files[0];
-    if (!file) return;
     
-    try {
-        const buffer = await file.arrayBuffer();
-        const parsed = parseDX7Sysex(buffer);
-        
-        if (parsed.isCartridge) {
-            // Show patch selector for cartridge
-            showDX7CartridgeSelector(parsed.voiceData, oscNum);
-        } else {
-            // Load single voice directly
-            loadDX7Voice(parsed.voiceData, oscNum);
-        }
-        
-        showNotification(`✓ Loaded DX7 patch: ${file.name}`);
-    } catch (error) {
-        console.error('Error loading DX7 file:', error);
-        showNotification(`✗ Error loading DX7 file: ${error.message}`, true);
-    }
+    console.log('✅ DX7 event listeners added for OSC', oscNum);
 }
 
 /**
  * Show cartridge patch selector
+ * @param {Uint8Array} cartridgeData - 4096 bytes of cartridge voice data
+ * @param {number} oscNum - Oscillator number
+ * @param {string} sourceFile - Source .syx filepath
  */
-function showDX7CartridgeSelector(cartridgeData, oscNum) {
+function showDX7CartridgeSelector(cartridgeData, oscNum, sourceFile = '') {
+    console.log('🎼 Showing cartridge selector for', cartridgeData.length, 'bytes of voice data');
+    console.log('   oscNum parameter:', oscNum, 'Type:', typeof oscNum);
+    console.log('   Source file:', sourceFile);
+    
+    // CRITICAL FIX: oscNum must be valid!
+    if (!oscNum || isNaN(oscNum)) {
+        console.error('❌ CRITICAL: oscNum is invalid:', oscNum);
+        console.error('   This means currentSampleOscTarget was not set when browsing!');
+        alert('Error: Oscillator number not specified. Please try clicking the Browse button again.');
+        return;
+    }
+    
     const patches = [];
     for (let i = 0; i < 32; i++) {
         const name = extractDX7PatchName(cartridgeData, i, true);
         patches.push({ index: i, name: name });
+        console.log(`  Patch ${i + 1}: ${name}`);
     }
     
     // Create selector dialog
@@ -329,11 +318,14 @@ function showDX7CartridgeSelector(cartridgeData, oscNum) {
     dialog.className = 'modal';
     dialog.innerHTML = `
         <div class="modal-content" style="max-width: 600px;">
-            <h2>Select DX7 Patch</h2>
+            <h2>Select DX7 Patch (32 patches in cartridge)</h2>
             <div style="max-height: 400px; overflow-y: auto; margin: 20px 0;">
                 ${patches.map(p => `
-                    <div class="dx7-patch-item" data-index="${p.index}" style="padding: 10px; cursor: pointer; border-bottom: 1px solid #333;">
-                        <strong>${p.index + 1}.</strong> ${p.name}
+                    <div class="dx7-patch-item" data-index="${p.index}" 
+                         style="padding: 10px; cursor: pointer; border-bottom: 1px solid #333; background: #1a1a1a;"
+                         onmouseover="this.style.background='#2a2a2a'"
+                         onmouseout="this.style.background='#1a1a1a'">
+                        <strong>${(p.index + 1).toString().padStart(2, '0')}.</strong> ${p.name}
                     </div>
                 `).join('')}
             </div>
@@ -343,15 +335,40 @@ function showDX7CartridgeSelector(cartridgeData, oscNum) {
     
     document.body.appendChild(dialog);
     dialog.style.display = 'flex';
+    console.log('✅ Cartridge selector dialog shown');
+    
+    // Store oscNum in dialog data for closure
+    dialog.dataset.oscNum = oscNum;
+    dialog.dataset.sourceFile = sourceFile;
     
     // Add click handlers
-    dialog.querySelectorAll('.dx7-patch-item').forEach(item => {
+    const patchItems = dialog.querySelectorAll('.dx7-patch-item');
+    console.log('🔧 Found', patchItems.length, 'patch items to add click handlers to');
+    
+    patchItems.forEach((item, idx) => {
         item.addEventListener('click', () => {
             const index = parseInt(item.dataset.index);
-            const packedVoice = cartridgeData.slice(index * 128, (index + 1) * 128);
-            const unpackedVoice = unpackDX7Voice(packedVoice);
-            loadDX7Voice(unpackedVoice, oscNum);
-            document.body.removeChild(dialog);
+            const targetOsc = parseInt(dialog.dataset.oscNum);
+            const targetFile = dialog.dataset.sourceFile;
+            
+            console.log('🎯 Clicked patch item #', idx + 1, 'Data index:', index);
+            console.log('   Target OSC:', targetOsc, 'Source file:', targetFile);
+            
+            try {
+                const packedVoice = cartridgeData.slice(index * 128, (index + 1) * 128);
+                console.log('📦 Packed voice slice:', packedVoice.length, 'bytes');
+                
+                const unpackedVoice = unpackDX7Voice(packedVoice);
+                console.log('📝 Unpacked voice data:', unpackedVoice.length, 'bytes');
+                
+                // Load voice with source file and patch index info
+                loadDX7Voice(unpackedVoice, targetOsc, targetFile, index + 1);
+                document.body.removeChild(dialog);
+                console.log('✅ Cartridge selector closed, patch loaded');
+            } catch (error) {
+                console.error('❌ Error loading patch:', error);
+                alert('Error loading patch: ' + error.message);
+            }
         });
     });
     
@@ -371,28 +388,88 @@ function closeDX7CartridgeSelector() {
 
 /**
  * Load a DX7 voice into the current state
+ * @param {Uint8Array} unpackedVoice - 155/156 byte voice data
+ * @param {number} oscNum - Oscillator number (1 or 2)
+ * @param {string} sourceFile - Optional source .syx filepath
+ * @param {number} patchIndex - Optional patch index (1-32) if from cartridge
  */
-function loadDX7Voice(unpackedVoice, oscNum) {
+function loadDX7Voice(unpackedVoice, oscNum, sourceFile = '', patchIndex = null) {
+    console.log('💾 Loading DX7 voice to OSC', oscNum, 'Voice data:', unpackedVoice.length, 'bytes');
+    
+    // Make sure OSC type is set to dx7 and UI is initialized
+    currentState[`osc${oscNum}Type`] = 'dx7';
+    const typeSelect = document.getElementById(`osc${oscNum}Type`);
+    if (typeSelect) {
+        typeSelect.value = 'dx7';
+    }
+    
+    // Initialize DX7 UI if not already done
+    const container = document.getElementById(`osc${oscNum}DX7Container`);
+    if (container && container.style.display === 'none') {
+        console.log('   Initializing DX7 UI first...');
+        initializeDX7UI(oscNum);
+    }
+    
     // Store as hex string
-    currentState[`osc${oscNum}DX7Patch`] = voiceDataToHex(unpackedVoice);
+    const hexString = voiceDataToHex(unpackedVoice);
+    currentState[`osc${oscNum}DX7Patch`] = hexString;
+    console.log('   Stored as hex:', hexString.length, 'chars (', hexString.substring(0, 32), '...)');
+    
+    // Store source info for display
+    if (sourceFile) {
+        currentState[`osc${oscNum}DX7SourceFile`] = sourceFile;
+        currentState[`osc${oscNum}DX7PatchIndex`] = patchIndex ? patchIndex.toString() : '';
+        console.log('   Source:', sourceFile, patchIndex ? `(Patch #${patchIndex})` : '');
+    }
     
     // Extract and display info
     updateDX7Display(oscNum);
     
-    console.log(`Loaded DX7 patch to OSC${oscNum}`);
+    console.log(`✅ DX7 patch loaded to OSC${oscNum}`);
 }
 
 /**
  * Update DX7 display with current patch info
  */
 function updateDX7Display(oscNum) {
-    const patchHex = currentState[`osc${oscNum}DX7Patch`];
+    console.log('🔄 Updating DX7 display for OSC', oscNum);
     
-    if (!patchHex || patchHex.length !== 312) { // 156 bytes * 2 hex chars
-        document.getElementById(`osc${oscNum}DX7Info`).style.display = 'none';
+    const patchHex = currentState[`osc${oscNum}DX7Patch`];
+    console.log('   Patch hex length:', patchHex ? patchHex.length : 'null');
+    
+    const infoElement = document.getElementById(`osc${oscNum}DX7Info`);
+    if (!infoElement) {
+        console.warn('⚠️ DX7 info element not found for OSC', oscNum);
         return;
     }
     
+    // Show source path even if patch data is invalid
+    const sourceFile = currentState[`osc${oscNum}DX7SourceFile`];
+    const patchIndex = currentState[`osc${oscNum}DX7PatchIndex`];
+    const sourcePathEl = document.getElementById(`osc${oscNum}DX7SourcePath`);
+    
+    if (sourcePathEl && sourceFile) {
+        let sourceText = sourceFile;
+        if (patchIndex) {
+            sourceText += ` (Patch #${patchIndex})`;
+        }
+        sourcePathEl.textContent = sourceText;
+        console.log('   Source path set to:', sourceText);
+    }
+    
+    // Check for valid patch data (155 or 156 bytes = 310 or 312 hex chars)
+    if (!patchHex || (patchHex.length !== 310 && patchHex.length !== 312)) {
+        console.log('   No valid patch data (expected 310 or 312 chars, got', patchHex ? patchHex.length : 'null', '), hiding patch info (but showing source)');
+        // Still show the info container if we have source file
+        if (sourceFile) {
+            infoElement.style.display = 'block';
+        } else {
+            infoElement.style.display = 'none';
+        }
+        return;
+    }
+    
+    console.log('   Patch hex valid, parsing...');
     const voiceData = hexToVoiceData(patchHex);
     
     // Extract info
@@ -401,12 +478,21 @@ function updateDX7Display(oscNum) {
     const feedback = extractDX7Feedback(voiceData);
     const oscSync = extractDX7OscSync(voiceData);
     
-    // Update UI
-    document.getElementById(`osc${oscNum}DX7PatchName`).textContent = name;
-    document.getElementById(`osc${oscNum}DX7Algorithm`).textContent = algorithm;
-    document.getElementById(`osc${oscNum}DX7Feedback`).textContent = feedback;
-    document.getElementById(`osc${oscNum}DX7OscSync`).textContent = oscSync ? 'ON' : 'OFF';
-    document.getElementById(`osc${oscNum}DX7Info`).style.display = 'block';
+    console.log('   Patch info:', {name, algorithm, feedback, oscSync});
+    
+    // Update UI with null checks
+    const nameEl = document.getElementById(`osc${oscNum}DX7PatchName`);
+    const algoEl = document.getElementById(`osc${oscNum}DX7Algorithm`);
+    const feedbackEl = document.getElementById(`osc${oscNum}DX7Feedback`);
+    const syncEl = document.getElementById(`osc${oscNum}DX7OscSync`);
+    
+    if (nameEl) nameEl.textContent = name;
+    if (algoEl) algoEl.textContent = algorithm;
+    if (feedbackEl) feedbackEl.textContent = feedback;
+    if (syncEl) syncEl.textContent = oscSync ? 'ON' : 'OFF';
+    
+    infoElement.style.display = 'block';
+    console.log('✅ DX7 display updated with patch info');
     
     // Update engine mode display
     const engineMode = currentState[`osc${oscNum}DX7EngineMode`] || '0';
@@ -426,7 +512,7 @@ function updateDX7Display(oscNum) {
 }
 
 // Track current DX7 browser path and oscillator
-let currentDX7BrowserPath = '/DX7/';
+let currentDX7BrowserPath = '/';
 let currentDX7BrowserOsc = null;
 
 /**
@@ -438,7 +524,8 @@ async function browseDX7FromDeluge(oscNum) {
         return;
     }
     
-    currentDX7BrowserPath = '/DX7/';
+    // Start from root so users can navigate to wherever their DX7 files are
+    currentDX7BrowserPath = '/';
     currentDX7BrowserOsc = oscNum;
     
     try {
@@ -457,8 +544,15 @@ async function loadDX7Directory(path) {
         showNotification('Loading DX7 directory...');
         const entries = await listDirectory(path);
         
+        console.log('DX7 Browser - Raw entries:', entries);
+        console.log('DX7 Browser - Path:', path);
+        
         // Filter system files
         const filtered = filterSystemFiles(entries);
+        
+        console.log('DX7 Browser - Filtered entries:', filtered);
+        console.log('DX7 Browser - Directories:', filtered.filter(e => e.dir));
+        console.log('DX7 Browser - Files:', filtered.filter(e => !e.dir));
         
         // Show file browser
         showDX7FileBrowser(filtered, path);
@@ -498,7 +592,7 @@ function showDX7FileBrowser(entries, currentPath) {
     `;
     
     // Add "Up" button if not at root
-    if (currentPath !== '/DX7/') {
+    if (currentPath !== '/') {
         html += `
             <button id="dx7BrowserUp" style="margin-bottom: 10px;">📁 .. (Up)</button>
         `;
@@ -509,7 +603,10 @@ function showDX7FileBrowser(entries, currentPath) {
     `;
     
     if (directories.length === 0 && files.length === 0) {
-        html += '<div style="padding: 20px; text-align: center; color: #888;">No .syx files or folders found</div>';
+        html += '<div style="padding: 20px; text-align: center; color: #888;">';
+        html += 'No .syx files or folders found in this directory<br><br>';
+        html += '<small>Navigate to folders containing your DX7 .syx patch files</small>';
+        html += '</div>';
     } else {
         // Directories first
         directories.forEach(dir => {
@@ -548,7 +645,24 @@ function showDX7FileBrowser(entries, currentPath) {
     const upBtn = document.getElementById('dx7BrowserUp');
     if (upBtn) {
         upBtn.addEventListener('click', async () => {
-            const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/', currentPath.length - 2) + 1);
+            if (currentPath === '/') return; // Already at root
+            
+            // Calculate parent path
+            let parentPath;
+            if (currentPath.endsWith('/')) {
+                // Remove trailing slash, find previous slash, add trailing slash back
+                const pathWithoutTrailing = currentPath.substring(0, currentPath.length - 1);
+                const lastSlash = pathWithoutTrailing.lastIndexOf('/');
+                parentPath = pathWithoutTrailing.substring(0, lastSlash + 1);
+            } else {
+                parentPath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+            }
+            
+            // Ensure we always have at least '/'
+            if (!parentPath || parentPath === '') {
+                parentPath = '/';
+            }
+            
             currentDX7BrowserPath = parentPath;
             await loadDX7Directory(parentPath);
         });
@@ -617,6 +731,8 @@ function clearDX7Patch(oscNum) {
     currentState[`osc${oscNum}DX7Patch`] = '';
     currentState[`osc${oscNum}DX7EngineMode`] = '0';
     currentState[`osc${oscNum}DX7RandomDetune`] = '0';
+    currentState[`osc${oscNum}DX7SourceFile`] = '';
+    currentState[`osc${oscNum}DX7PatchIndex`] = '';
     updateDX7Display(oscNum);
     showNotification(`✓ Cleared DX7 patch from OSC${oscNum}`);
 }

@@ -239,16 +239,75 @@ function browseSampleForOsc(oscNum) {
     }
     
     currentSampleOscTarget = oscNum;
-    document.getElementById('sampleBrowserModal').classList.add('show');
+    currentSampleBrowserMode = 'sample';
+    
+    // Update modal title and show it
+    const modal = document.getElementById('sampleBrowserModal');
+    const title = modal.querySelector('.modal-title');
+    if (title) {
+        title.textContent = 'Browse Samples';
+    }
+    modal.classList.add('show');
+    
+    // Start from SAMPLES folder
+    currentSampleBrowserPath = '/SAMPLES/';
     loadSampleDirectory('/SAMPLES/');
+}
+
+/**
+ * Open DX7 browser for a specific oscillator (reuses sample browser)
+ */
+function browseDX7ForOsc(oscNum) {
+    console.log('🎹 browseDX7ForOsc called with oscNum:', oscNum);
+    
+    if (!delugeOutput) {
+        showNotification('✗ Not connected to Deluge', true);
+        return;
+    }
+    
+    if (!oscNum) {
+        console.error('❌ oscNum is null/undefined!');
+        alert('Error: Oscillator number not specified');
+        return;
+    }
+    
+    currentSampleOscTarget = oscNum;
+    currentSampleBrowserMode = 'dx7';
+    console.log('   Set currentSampleOscTarget to:', currentSampleOscTarget);
+    
+    // Update modal title and show it
+    const modal = document.getElementById('sampleBrowserModal');
+    if (!modal) {
+        console.error('❌ Sample browser modal not found in HTML!');
+        alert('Error: Sample browser modal not found. Check HTML structure.');
+        return;
+    }
+    
+    const title = modal.querySelector('.modal-title');
+    if (title) {
+        title.textContent = 'Browse DX7 Patches (.syx files)';
+    } else {
+        console.warn('⚠️ Modal title not found, skipping title update');
+    }
+    
+    modal.classList.add('show');
+    
+    // Start from /DX7/ folder (or root if it doesn't exist)
+    currentSampleBrowserPath = '/DX7/';
+    console.log('🎹 Opening DX7 browser at /DX7/, mode:', currentSampleBrowserMode);
+    loadSampleDirectory('/DX7/');
 }
 
 /**
  * Close sample browser
  */
 function closeSampleBrowser() {
+    console.log('🚪 closeSampleBrowser called');
+    console.trace('Call stack:'); // Show where it was called from
     document.getElementById('sampleBrowserModal').classList.remove('show');
     currentSampleOscTarget = null;
+    currentSampleBrowserMode = 'sample'; // Reset mode
+    console.log('   Reset currentSampleOscTarget to null');
 }
 
 /**
@@ -279,22 +338,24 @@ function refreshSampleDirectory() {
 }
 
 /**
- * Render sample file list
+ * Render sample file list (also used for DX7 browser)
  */
 function renderSampleFileList(entries, path) {
+    console.log('📂 Rendering file list - Mode:', currentSampleBrowserMode, 'Path:', path, 'Entries:', entries.length);
+    
     const fileList = document.getElementById('sampleFileList');
     fileList.innerHTML = '';
 
-    // Show parent directory if not at SAMPLES root
-    if (path !== '/SAMPLES/' && path.startsWith('/SAMPLES/')) {
+    // Show parent directory if not at root
+    if (path !== '/') {
         const parentItem = document.createElement('div');
         parentItem.className = 'file-item folder';
         parentItem.innerHTML = '📁 .. (Parent Directory)';
         parentItem.onclick = () => {
-            const parentPath = path.substring(0, path.lastIndexOf('/', path.length - 2) + 1);
-            if (parentPath.startsWith('/SAMPLES/') || parentPath === '/SAMPLES/') {
-                loadSampleDirectory(parentPath);
-            }
+            const pathWithoutTrailing = path.endsWith('/') ? path.slice(0, -1) : path;
+            const parentPath = pathWithoutTrailing.substring(0, pathWithoutTrailing.lastIndexOf('/') + 1);
+            const finalParent = parentPath || '/';
+            loadSampleDirectory(finalParent);
         };
         fileList.appendChild(parentItem);
     }
@@ -340,11 +401,28 @@ function renderSampleFileList(entries, path) {
                     loadSampleDirectory(path + name + '/');
                 };
             } else {
-                // Check if it's an audio file
-                const audioExtensions = ['.WAV', '.AIFF', '.AIF'];
-                if (audioExtensions.some(ext => name.toUpperCase().endsWith(ext))) {
+                // Check file type based on browser mode
+                let isValidFile = false;
+                
+                if (currentSampleBrowserMode === 'dx7') {
+                    // DX7 mode: show .syx files
+                    isValidFile = name.toUpperCase().endsWith('.SYX');
+                    if (isValidFile) {
+                        console.log('✓ DX7 file found:', name);
+                    }
+                } else {
+                    // Sample mode: show audio files
+                    const audioExtensions = ['.WAV', '.AIFF', '.AIF'];
+                    isValidFile = audioExtensions.some(ext => name.toUpperCase().endsWith(ext));
+                }
+                
+                if (isValidFile) {
                     item.onclick = () => {
-                        selectSampleFile(path + name);
+                        if (currentSampleBrowserMode === 'dx7') {
+                            selectDX7File(path + name);
+                        } else {
+                            selectSampleFile(path + name);
+                        }
                     };
                 }
             }
@@ -383,6 +461,51 @@ function selectSampleFile(filepath) {
     
     closeSampleBrowser();
     showNotification(`✓ Sample selected: ${relativePath}`);
+}
+
+/**
+ * Select a DX7 file and load it
+ */
+async function selectDX7File(filepath) {
+    if (!currentSampleOscTarget) {
+        console.error('❌ currentSampleOscTarget is null when selectDX7File was called!');
+        return;
+    }
+    
+    // CRITICAL: Save oscTarget BEFORE closing browser (which sets it to null)
+    const oscTarget = currentSampleOscTarget;
+    console.log('💾 Saved oscTarget:', oscTarget, 'before closing browser');
+    
+    closeSampleBrowser();
+    
+    try {
+        showNotification('Loading DX7 patch from Deluge...');
+        
+        const data = await readFile(filepath);
+        const parsed = parseDX7Sysex(data.buffer);
+        
+        console.log('📦 DX7 file parsed:', {
+            isCartridge: parsed.isCartridge,
+            numPatches: parsed.numPatches,
+            voiceDataSize: parsed.voiceData.length
+        });
+        
+        if (parsed.isCartridge) {
+            console.log('🎵 Opening cartridge selector with 32 patches');
+            console.log('   Using saved oscTarget:', oscTarget);
+            showDX7CartridgeSelector(parsed.voiceData, oscTarget, filepath);
+        } else {
+            console.log('🎵 Loading single voice directly');
+            console.log('   Using saved oscTarget:', oscTarget);
+            loadDX7Voice(parsed.voiceData, oscTarget, filepath);
+        }
+        
+        const filename = filepath.substring(filepath.lastIndexOf('/') + 1);
+        showNotification(`✓ Loaded DX7 ${parsed.isCartridge ? 'cartridge' : 'patch'}: ${filename}`);
+    } catch (error) {
+        console.error('Error loading DX7 from Deluge:', error);
+        showNotification(`✗ Error: ${error.message}`, true);
+    }
 }
 
 // ============================================================================

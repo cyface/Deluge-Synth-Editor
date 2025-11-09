@@ -146,13 +146,23 @@ function generateXML() {
     }
     
     // Add DX7 attributes if type is dx7
-    if (currentState.osc1Type === 'dx7' && currentState.osc1DX7Patch) {
-        xml += `\n\t\tdx7patch="${currentState.osc1DX7Patch}"`;
-        if (currentState.osc1DX7EngineMode && currentState.osc1DX7EngineMode !== '0') {
-            xml += `\n\t\tdx7enginemode="${currentState.osc1DX7EngineMode}"`;
-        }
-        if (currentState.osc1DX7RandomDetune && currentState.osc1DX7RandomDetune !== '0') {
-            xml += `\n\t\tdx7randomdetune="${currentState.osc1DX7RandomDetune}"`;
+    if (currentState.osc1Type === 'dx7') {
+        console.log('🎹 OSC1 is DX7 type, checking for patch data...');
+        console.log('   osc1DX7Patch:', currentState.osc1DX7Patch ? currentState.osc1DX7Patch.substring(0, 32) + '...' : 'EMPTY!');
+        console.log('   osc1DX7EngineMode:', currentState.osc1DX7EngineMode);
+        console.log('   osc1DX7RandomDetune:', currentState.osc1DX7RandomDetune);
+        
+        if (currentState.osc1DX7Patch) {
+            xml += `\n\t\tdx7patch="${currentState.osc1DX7Patch}"`;
+            if (currentState.osc1DX7EngineMode && currentState.osc1DX7EngineMode !== '0') {
+                xml += `\n\t\tdx7enginemode="${currentState.osc1DX7EngineMode}"`;
+            }
+            if (currentState.osc1DX7RandomDetune && currentState.osc1DX7RandomDetune !== '0') {
+                xml += `\n\t\tdx7randomdetune="${currentState.osc1DX7RandomDetune}"`;
+            }
+            console.log('✅ DX7 patch data written to XML');
+        } else {
+            console.error('❌ OSC1 type is dx7 but no patch data found!');
         }
     }
     
@@ -181,13 +191,21 @@ function generateXML() {
     }
     
     // Add DX7 attributes if type is dx7
-    if (currentState.osc2Type === 'dx7' && currentState.osc2DX7Patch) {
-        xml += `\n\t\tdx7patch="${currentState.osc2DX7Patch}"`;
-        if (currentState.osc2DX7EngineMode && currentState.osc2DX7EngineMode !== '0') {
-            xml += `\n\t\tdx7enginemode="${currentState.osc2DX7EngineMode}"`;
-        }
-        if (currentState.osc2DX7RandomDetune && currentState.osc2DX7RandomDetune !== '0') {
-            xml += `\n\t\tdx7randomdetune="${currentState.osc2DX7RandomDetune}"`;
+    if (currentState.osc2Type === 'dx7') {
+        console.log('🎹 OSC2 is DX7 type, checking for patch data...');
+        console.log('   osc2DX7Patch:', currentState.osc2DX7Patch ? currentState.osc2DX7Patch.substring(0, 32) + '...' : 'EMPTY!');
+        
+        if (currentState.osc2DX7Patch) {
+            xml += `\n\t\tdx7patch="${currentState.osc2DX7Patch}"`;
+            if (currentState.osc2DX7EngineMode && currentState.osc2DX7EngineMode !== '0') {
+                xml += `\n\t\tdx7enginemode="${currentState.osc2DX7EngineMode}"`;
+            }
+            if (currentState.osc2DX7RandomDetune && currentState.osc2DX7RandomDetune !== '0') {
+                xml += `\n\t\tdx7randomdetune="${currentState.osc2DX7RandomDetune}"`;
+            }
+            console.log('✅ DX7 patch data written to XML');
+        } else {
+            console.error('❌ OSC2 type is dx7 but no patch data found!');
         }
     }
     

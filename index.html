@@ -548,14 +548,16 @@
                     
                     <!-- Load Controls -->
                     <div style="margin-bottom: 15px;">
-                        <input type="file" id="osc1DX7FileInput" accept=".syx" style="display: none;">
-                        <button onclick="document.getElementById('osc1DX7FileInput').click()" style="margin-right: 10px;">📂 Load .SYX File</button>
-                        <button id="osc1DX7BrowseBtn">📁 Browse Deluge</button>
+                        <button onclick="browseDX7ForOsc(1)">📁 Browse DX7 on Deluge</button>
                         <button onclick="clearDX7Patch(1)" style="margin-left: 10px; background: #cc0000;">✕ Clear</button>
                     </div>
                     
                     <!-- Patch Info -->
                     <div id="osc1DX7Info" style="display: none; padding: 10px; background: #2a2a2a; border-radius: 3px; margin-bottom: 15px;">
+                        <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #444;">
+                            <div style="font-size: 12px; color: #888; margin-bottom: 5px;">Source:</div>
+                            <div style="font-family: monospace; font-size: 11px;" id="osc1DX7SourcePath">-</div>
+                        </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div><strong>Patch:</strong> <span id="osc1DX7PatchName">-</span></div>
                             <div><strong>Algorithm:</strong> <span id="osc1DX7Algorithm">-</span></div>
@@ -568,15 +570,15 @@
                     <div class="controls-grid">
                         <div class="control-group">
                             <label class="control-label">Engine Mode</label>
-                            <select id="osc1DX7EngineMode">
-                                <option value="0">Default</option>
-                                <option value="1">NEON</option>
-                                <option value="2">Alternative</option>
+                            <select id="osc1DX7EngineMode" title="DX7 FM synthesis engine implementation">
+                                <option value="0" title="Auto-selects Modern or Mark I based on algorithm">Auto (Modern/Mark I)</option>
+                                <option value="1" title="Modern engine with NEON SIMD optimization (fastest)">Modern (NEON)</option>
+                                <option value="2" title="Original DX7 Mark I engine (classic sound)">Mark I (Classic)</option>
                             </select>
                         </div>
                         <div class="control-group">
-                            <label class="control-label">Random Detune: <span id="osc1DX7RandomDetuneValue">0</span></label>
-                            <input type="range" id="osc1DX7RandomDetune" min="0" max="100" value="0" style="width: 100%;">
+                            <label class="control-label" title="Adds analog-style random detuning per voice (makes sound warmer/wider)">Random Detune: <span id="osc1DX7RandomDetuneValue">0</span></label>
+                            <input type="range" id="osc1DX7RandomDetune" min="0" max="100" value="0" style="width: 100%;" title="0=No detune (digital), 100=Maximum analog warmth">
                         </div>
                     </div>
                     
@@ -656,14 +658,16 @@
                     
                     <!-- Load Controls -->
                     <div style="margin-bottom: 15px;">
-                        <input type="file" id="osc2DX7FileInput" accept=".syx" style="display: none;">
-                        <button onclick="document.getElementById('osc2DX7FileInput').click()" style="margin-right: 10px;">📂 Load .SYX File</button>
-                        <button id="osc2DX7BrowseBtn">📁 Browse Deluge</button>
+                        <button onclick="browseDX7ForOsc(2)">📁 Browse DX7 on Deluge</button>
                         <button onclick="clearDX7Patch(2)" style="margin-left: 10px; background: #cc0000;">✕ Clear</button>
                     </div>
                     
                     <!-- Patch Info -->
                     <div id="osc2DX7Info" style="display: none; padding: 10px; background: #2a2a2a; border-radius: 3px; margin-bottom: 15px;">
+                        <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #444;">
+                            <div style="font-size: 12px; color: #888; margin-bottom: 5px;">Source:</div>
+                            <div style="font-family: monospace; font-size: 11px;" id="osc2DX7SourcePath">-</div>
+                        </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div><strong>Patch:</strong> <span id="osc2DX7PatchName">-</span></div>
                             <div><strong>Algorithm:</strong> <span id="osc2DX7Algorithm">-</span></div>
@@ -676,15 +680,15 @@
                     <div class="controls-grid">
                         <div class="control-group">
                             <label class="control-label">Engine Mode</label>
-                            <select id="osc2DX7EngineMode">
-                                <option value="0">Default</option>
-                                <option value="1">NEON</option>
-                                <option value="2">Alternative</option>
+                            <select id="osc2DX7EngineMode" title="DX7 FM synthesis engine implementation">
+                                <option value="0" title="Auto-selects Modern or Mark I based on algorithm">Auto (Modern/Mark I)</option>
+                                <option value="1" title="Modern engine with NEON SIMD optimization (fastest)">Modern (NEON)</option>
+                                <option value="2" title="Original DX7 Mark I engine (classic sound)">Mark I (Classic)</option>
                             </select>
                         </div>
                         <div class="control-group">
-                            <label class="control-label">Random Detune: <span id="osc2DX7RandomDetuneValue">0</span></label>
-                            <input type="range" id="osc2DX7RandomDetune" min="0" max="100" value="0" style="width: 100%;">
+                            <label class="control-label" title="Adds analog-style random detuning per voice (makes sound warmer/wider)">Random Detune: <span id="osc2DX7RandomDetuneValue">0</span></label>
+                            <input type="range" id="osc2DX7RandomDetune" min="0" max="100" value="0" style="width: 100%;" title="0=No detune (digital), 100=Maximum analog warmth">
                         </div>
                     </div>
                     

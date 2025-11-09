@@ -29,6 +29,8 @@ const defaultParams = {
     osc1DX7Patch: '',           // 156-byte DX7 voice data (hex string)
     osc1DX7EngineMode: '0',     // DX7 engine implementation (0=default, 1=NEON, 2=alt)
     osc1DX7RandomDetune: '0',   // Analog-style detuning per voice (0-100)
+    osc1DX7SourceFile: '',      // Source .syx filepath for display
+    osc1DX7PatchIndex: '',      // Patch index if from cartridge (1-32)
 
     osc2Type: 'square',
     osc2Transpose: '-12',
@@ -40,6 +42,8 @@ const defaultParams = {
     osc2DX7Patch: '',           // 156-byte DX7 voice data (hex string)
     osc2DX7EngineMode: '0',     // DX7 engine implementation (0=default, 1=NEON, 2=alt)
     osc2DX7RandomDetune: '0',   // Analog-style detuning per voice (0-100)
+    osc2DX7SourceFile: '',      // Source .syx filepath for display
+    osc2DX7PatchIndex: '',      // Patch index if from cartridge (1-32)
 
     // Oscillator levels (hex values)
     oscAVolume: '0x7FFFFFFF',
