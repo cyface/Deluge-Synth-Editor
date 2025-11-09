@@ -10,7 +10,7 @@ A web-based synth preset editor for the Synthstrom Deluge, featuring graphical c
 
 ### ✨ **Parameter Coverage**
 Edit all essential Deluge synth parameters:
-- **Oscillators**: Type, pitch, FM synthesis, sample/wavetable files
+- **Oscillators**: Type, pitch, FM synthesis, sample/wavetable files, **DX7 patches**
 - **Envelopes**: 4 envelopes with live animated visual displays
 - **Filters**: LPF/HPF with frequency, resonance, morphing, routing
 - **LFOs**: LFO1-4 with sync options (Community Firmware)
@@ -38,8 +38,16 @@ Edit all essential Deluge synth parameters:
 - Browse and load presets directly from Deluge
 - Send edited presets back instantly
 - Browse and select sample files from `/SAMPLES/`
+- **Load DX7 patches from Deluge** (browse .syx files, select from cartridges)
 - Preserves directory structure
 - Overwrite protection with confirmation dialogs
+
+### 🎹 **DX7 FM Synthesis Support**
+- Load Yamaha DX7 patches (.syx files) directly from Deluge SD card via SYSEX
+- Cartridge support - browse and select individual patches from 32-voice cartridge banks
+- Complete 156-byte voice data embedded in XML for round-trip editing
+- Deluge-specific parameters: Engine mode (Auto/Modern/Mark I) and analog-style random detune (0-100)
+- Patches editable on Deluge hardware or in Dexed external editor, with full operator/envelope control preserved
 
 ## Quick Start
 
