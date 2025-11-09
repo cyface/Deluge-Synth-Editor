@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Deluge Synth Editor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@300&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -12,7 +15,10 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Raleway', sans-serif;
+            font-weight: 300;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
             background: #1a1a1a;
             color: #e0e0e0;
             padding: 20px;
@@ -21,6 +27,7 @@
         .container {
             max-width: 1400px;
             margin: 0 auto;
+            position: relative;
         }
 
         h1 {
@@ -28,7 +35,7 @@
             color: #ff6b35;
             margin-bottom: 30px;
             font-size: 2.5em;
-            text-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+            text-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
         }
 
         .actions {
@@ -46,8 +53,11 @@
             padding: 12px 30px;
             border-radius: 8px;
             cursor: pointer;
+            font-family: 'Raleway', sans-serif;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 300;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             transition: all 0.3s;
         }
@@ -167,7 +177,7 @@
             margin-top: 8px;
             font-size: 0.85em;
             color: #ff6b35;
-            font-weight: bold;
+            font-weight: 300;
         }
 
         /* Slider styling */
@@ -209,7 +219,7 @@
             margin-top: 5px;
             font-size: 0.85em;
             color: #ff6b35;
-            font-weight: bold;
+            font-weight: 300;
         }
 
         /* Select styling */
@@ -372,7 +382,7 @@
 
         .file-item.folder {
             color: #ff6b35;
-            font-weight: bold;
+            font-weight: 300;
         }
 
         .loading {
@@ -389,28 +399,29 @@
         </div>
         <h1>Synth Editor</h1>
 
-        <div style="text-align: center; margin-bottom: 15px;">
-            <label style="color: #888; font-size: 0.9em; cursor: pointer;">
-                <input type="checkbox" id="experimentalToggle" onchange="toggleExperimental()" style="margin-right: 8px;">
-                Show Experimental Features (SYSEX - not working yet)
-            </label>
+        <!-- Preset Name Section -->
+        <div style="margin-bottom: 20px;">
+            <input type="text" id="presetName" class="preset-name" placeholder="Preset Name" value="My Synth" 
+                   style="width: 100%; text-align: center; font-size: 18px; font-weight: bold;">
+            <div id="savePathIndicator" style="display: none; text-align: center; font-size: 12px; color: #888; font-family: monospace; margin-top: 5px;">
+                💾 Will save to: <span id="savePathText">/SYNTHS/MY SYNTH.XML</span>
+            </div>
         </div>
 
-        <div class="actions">
-            <input type="text" id="presetName" class="preset-name" placeholder="Preset Name" value="My Synth">
-            <span id="sysexButtons" style="display: none;">
-                <button id="connectBtn" onclick="connectToDeluge()">🔌 Connect to Deluge</button>
-                <button id="sendToDelugeBtn" onclick="sendToDeluge()" disabled>📤 Send to Deluge</button>
-                <button id="loadFromDelugeBtn" onclick="showDelugeBrowser()" disabled>📥 Load from Deluge</button>
-            </span>
+        <!-- Connection Status -->
+        <div id="connectionStatus" style="text-align: center; margin-bottom: 15px; color: #888; font-size: 0.9em;">
+            Not connected to Deluge
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="actions" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+            <button id="connectBtn" onclick="connectToDeluge()">🔌 Connect to Deluge</button>
+            <button id="sendToDelugeBtn" onclick="sendToDeluge()" style="display: none;">📤 Send to Deluge</button>
+            <button id="loadFromDelugeBtn" onclick="showDelugeBrowser()" style="display: none;">📥 Load from Deluge</button>
             <button onclick="loadXML()">Load XML File</button>
             <button onclick="downloadXML()">Download XML</button>
             <button onclick="randomizePreset()">🎲 Randomize</button>
             <button onclick="resetToDefault()">Reset to Default</button>
-        </div>
-
-        <div id="connectionStatus" style="text-align: center; margin-bottom: 15px; color: #888; font-size: 0.9em; display: none;">
-            Not connected to Deluge
         </div>
 
         <div class="tabs">
@@ -498,6 +509,7 @@
                             <option value="analogSaw">Analog Saw</option>
                             <option value="wavetable">Wavetable</option>
                             <option value="sample">Sample</option>
+                            <option value="dx7">DX7 FM</option>
                         </select>
                     </div>
                     <div class="control-group">
@@ -516,7 +528,10 @@
                 <div class="controls-grid" style="margin-top: 20px;">
                     <div class="control-group" style="grid-column: span 2;">
                         <label class="control-label">Sample/Wavetable File (optional)</label>
-                        <input type="text" id="osc1File" placeholder="SAMPLES/your-sample.wav">
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" id="osc1File" placeholder="SAMPLES/your-sample.wav" style="flex: 1;">
+                            <button id="osc1FileBrowse" onclick="browseSampleForOsc(1)" style="padding: 5px 10px; display: none;" title="Browse samples on Deluge">📁</button>
+                        </div>
                     </div>
                 </div>
                 <div class="controls-grid" style="margin-top: 20px;">
@@ -536,6 +551,51 @@
                         <div class="knob-value" id="oscAWavetablePositionValue">0</div>
                     </div>
                 </div>
+                
+                <!-- DX7 Controls for OSC1 -->
+                <div id="osc1DX7Container" style="display: none; margin-top: 20px; padding: 15px; background: #1a1a1a; border-radius: 5px;">
+                    <h3 style="margin: 0 0 15px 0;">DX7 FM Synthesis</h3>
+                    
+                    <!-- Load Controls -->
+                    <div style="margin-bottom: 15px;">
+                        <button onclick="browseDX7ForOsc(1)">📁 Browse DX7 on Deluge</button>
+                        <button onclick="clearDX7Patch(1)" style="margin-left: 10px; background: #cc0000;">✕ Clear</button>
+                    </div>
+                    
+                    <!-- Patch Info -->
+                    <div id="osc1DX7Info" style="display: none; padding: 10px; background: #2a2a2a; border-radius: 3px; margin-bottom: 15px;">
+                        <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #444;">
+                            <div style="font-size: 12px; color: #888; margin-bottom: 5px;">Source:</div>
+                            <div style="font-family: monospace; font-size: 11px;" id="osc1DX7SourcePath">-</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div><strong>Patch:</strong> <span id="osc1DX7PatchName">-</span></div>
+                            <div><strong>Algorithm:</strong> <span id="osc1DX7Algorithm">-</span></div>
+                            <div><strong>Feedback:</strong> <span id="osc1DX7Feedback">-</span></div>
+                            <div><strong>Osc Sync:</strong> <span id="osc1DX7OscSync">-</span></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Deluge Controls -->
+                    <div class="controls-grid">
+                        <div class="control-group">
+                            <label class="control-label">Engine Mode</label>
+                            <select id="osc1DX7EngineMode" title="DX7 FM synthesis engine implementation">
+                                <option value="0" title="Auto-selects Modern or Mark I based on algorithm">Auto (Modern/Mark I)</option>
+                                <option value="1" title="Modern engine with NEON SIMD optimization (fastest)">Modern (NEON)</option>
+                                <option value="2" title="Original DX7 Mark I engine (classic sound)">Mark I (Classic)</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" title="Adds analog-style random detuning per voice (makes sound warmer/wider)">Random Detune: <span id="osc1DX7RandomDetuneValue">0</span></label>
+                            <input type="range" id="osc1DX7RandomDetune" min="0" max="100" value="0" style="width: 100%;" title="0=No detune (digital), 100=Maximum analog warmth">
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 10px; font-size: 12px; color: #888;">
+                        <a href="https://asb2m10.github.io/dexed/" target="_blank" style="color: #4CAF50;">Edit in Dexed →</a>
+                    </div>
+                </div>
             </div>
 
             <div class="section">
@@ -552,6 +612,7 @@
                             <option value="analogSaw">Analog Saw</option>
                             <option value="wavetable">Wavetable</option>
                             <option value="sample">Sample</option>
+                            <option value="dx7">DX7 FM</option>
                         </select>
                     </div>
                     <div class="control-group">
@@ -577,7 +638,10 @@
                 <div class="controls-grid" style="margin-top: 20px;">
                     <div class="control-group" style="grid-column: span 2;">
                         <label class="control-label">Sample/Wavetable File (optional)</label>
-                        <input type="text" id="osc2File" placeholder="SAMPLES/your-sample.wav">
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" id="osc2File" placeholder="SAMPLES/your-sample.wav" style="flex: 1;">
+                            <button id="osc2FileBrowse" onclick="browseSampleForOsc(2)" style="padding: 5px 10px; display: none;" title="Browse samples on Deluge">📁</button>
+                        </div>
                     </div>
                 </div>
                 <div class="controls-grid" style="margin-top: 20px;">
@@ -595,6 +659,51 @@
                         <label class="control-label">Wavetable Pos</label>
                         <div class="knob" id="oscBWavetablePositionKnob" data-param="oscBWavetablePosition" data-min="-50" data-max="50"></div>
                         <div class="knob-value" id="oscBWavetablePositionValue">0</div>
+                    </div>
+                </div>
+                
+                <!-- DX7 Controls for OSC2 -->
+                <div id="osc2DX7Container" style="display: none; margin-top: 20px; padding: 15px; background: #1a1a1a; border-radius: 5px;">
+                    <h3 style="margin: 0 0 15px 0;">DX7 FM Synthesis</h3>
+                    
+                    <!-- Load Controls -->
+                    <div style="margin-bottom: 15px;">
+                        <button onclick="browseDX7ForOsc(2)">📁 Browse DX7 on Deluge</button>
+                        <button onclick="clearDX7Patch(2)" style="margin-left: 10px; background: #cc0000;">✕ Clear</button>
+                    </div>
+                    
+                    <!-- Patch Info -->
+                    <div id="osc2DX7Info" style="display: none; padding: 10px; background: #2a2a2a; border-radius: 3px; margin-bottom: 15px;">
+                        <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #444;">
+                            <div style="font-size: 12px; color: #888; margin-bottom: 5px;">Source:</div>
+                            <div style="font-family: monospace; font-size: 11px;" id="osc2DX7SourcePath">-</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div><strong>Patch:</strong> <span id="osc2DX7PatchName">-</span></div>
+                            <div><strong>Algorithm:</strong> <span id="osc2DX7Algorithm">-</span></div>
+                            <div><strong>Feedback:</strong> <span id="osc2DX7Feedback">-</span></div>
+                            <div><strong>Osc Sync:</strong> <span id="osc2DX7OscSync">-</span></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Deluge Controls -->
+                    <div class="controls-grid">
+                        <div class="control-group">
+                            <label class="control-label">Engine Mode</label>
+                            <select id="osc2DX7EngineMode" title="DX7 FM synthesis engine implementation">
+                                <option value="0" title="Auto-selects Modern or Mark I based on algorithm">Auto (Modern/Mark I)</option>
+                                <option value="1" title="Modern engine with NEON SIMD optimization (fastest)">Modern (NEON)</option>
+                                <option value="2" title="Original DX7 Mark I engine (classic sound)">Mark I (Classic)</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" title="Adds analog-style random detuning per voice (makes sound warmer/wider)">Random Detune: <span id="osc2DX7RandomDetuneValue">0</span></label>
+                            <input type="range" id="osc2DX7RandomDetune" min="0" max="100" value="0" style="width: 100%;" title="0=No detune (digital), 100=Maximum analog warmth">
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 10px; font-size: 12px; color: #888;">
+                        <a href="https://asb2m10.github.io/dexed/" target="_blank" style="color: #4CAF50;">Edit in Dexed →</a>
                     </div>
                 </div>
             </div>
@@ -1109,23 +1218,58 @@
 
     <div id="notification" class="notification"></div>
 
-    <!-- Directory Browser Modal -->
+    <!-- Directory Browser Modal (for Synth Presets) -->
     <div id="browserModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-title">Browse Deluge Presets</div>
                 <button class="close-btn" onclick="closeBrowser()">✕</button>
             </div>
-            <div id="currentPath" style="margin-bottom: 15px; color: #888; font-family: monospace;">
-                /SYNTHS/
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                <div id="currentPath" style="color: #888; font-family: monospace; flex: 1;">
+                    /SYNTHS/
+                </div>
+                <button onclick="refreshDirectory()" style="padding: 5px 10px; font-size: 14px;" title="Refresh directory listing">🔄 Refresh</button>
             </div>
             <div id="fileList" class="file-list">
-                <div class="loading">Loading...</div>
+                <div class="loading">Loading, can take a while on first go...</div>
             </div>
         </div>
     </div>
 
-    <script src="deluge-synth-editor.js"></script>
+    <!-- Sample Browser Modal -->
+    <div id="sampleBrowserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Browse Samples</div>
+                <button class="close-btn" onclick="closeSampleBrowser()">✕</button>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                <div id="sampleCurrentPath" style="color: #888; font-family: monospace; flex: 1;">
+                    /SAMPLES/
+                </div>
+                <button onclick="refreshSampleDirectory()" style="padding: 5px 10px; font-size: 14px;" title="Refresh directory listing">🔄 Refresh</button>
+            </div>
+            <div id="sampleFileList" class="file-list">
+                <div class="loading">Loading, can take a while on first go...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core: Parameters & SYSEX (no dependencies) -->
+    <script src="js/parameters.js"></script>
+    <script src="js/sysex-core.js"></script>
+    
+    <!-- Engine: XML processing (uses parameters + sysex) -->
+    <script src="js/xml-engine.js"></script>
+    
+    <!-- UI: File browsers and controls (uses sysex + xml) -->
+    <script src="js/file-browser.js"></script>
+    <script src="js/ui-controls.js"></script>
+    <script src="js/dx7.js"></script>
+    
+    <!-- App: Initialization (uses everything) -->
+    <script src="js/app.js"></script>
 </body>
 </html>
 
