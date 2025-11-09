@@ -1154,7 +1154,19 @@
         </div>
     </div>
 
-    <script src="deluge-synth-editor.js"></script>
+    <!-- Core: Parameters & SYSEX (no dependencies) -->
+    <script src="js/parameters.js"></script>
+    <script src="js/sysex-core.js"></script>
+    
+    <!-- Engine: XML processing (uses parameters + sysex) -->
+    <script src="js/xml-engine.js"></script>
+    
+    <!-- UI: File browsers and controls (uses sysex + xml) -->
+    <script src="js/file-browser.js"></script>
+    <script src="js/ui-controls.js"></script>
+    
+    <!-- App: Initialization (uses everything) -->
+    <script src="js/app.js"></script>
 </body>
 </html>
 

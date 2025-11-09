@@ -1,0 +1,277 @@
+// Deluge Synth Editor - Parameter Definitions & Conversions
+// This file contains all parameter defaults, state management, and value conversion functions
+
+// ============================================================================
+// PARAMETER DEFINITIONS
+// ============================================================================
+
+// Default parameter values (as hex strings used in Deluge XML)
+const defaultParams = {
+    // General
+    polyphonic: 'poly',
+    voicePriority: '1',
+    mode: 'subtractive',
+    transpose: '0',
+    maxVoices: '8',
+
+    // Unison
+    unisonNum: '1',
+    unisonDetune: '8',
+    unisonSpread: '0',
+
+    // Oscillators
+    osc1Type: 'square',
+    osc1Transpose: '0',
+    osc1Cents: '0',
+    osc1RetrigPhase: '-1',
+    osc1IsTracking: '1',  // Tracks keyboard pitch (1=yes, 0=no)
+    osc1File: '',
+
+    osc2Type: 'square',
+    osc2Transpose: '-12',
+    osc2Cents: '0',
+    osc2RetrigPhase: '-1',
+    osc2IsTracking: '1',
+    osc2Sync: '0',
+    osc2File: '',
+
+    // Oscillator levels (hex values)
+    oscAVolume: '0x7FFFFFFF',
+    oscAPulseWidth: '0x00000000',
+    oscAWavetablePosition: '0x00000000',
+    oscBVolume: '0x80000000',
+    oscBPulseWidth: '0x00000000',
+    oscBWavetablePosition: '0x00000000',
+    noiseVolume: '0x80000000',
+
+    // Master
+    volume: '0x4CCCCCA8',
+    pan: '0x00000000',
+    portamento: '0x80000000',
+
+    // Envelopes (hex values)
+    env1Attack: '0x80000000',
+    env1Decay: '0xE6666654',
+    env1Sustain: '0x7FFFFFFF',
+    env1Release: '0x851EB851',
+
+    env2Attack: '0xE6666654',
+    env2Decay: '0xE6666654',
+    env2Sustain: '0xFFFFFFE9',
+    env2Release: '0xE6666654',
+
+    env3Attack: '0xE6666654',
+    env3Decay: '0xE6666654',
+    env3Sustain: '0xFFFFFFE9',
+    env3Release: '0xE6666654',
+
+    env4Attack: '0xE6666654',
+    env4Decay: '0xE6666654',
+    env4Sustain: '0xFFFFFFE9',
+    env4Release: '0xE6666654',
+
+    // Filters
+    lpfMode: '24dB',
+    lpfFrequency: '0x7FFFFFFF',
+    lpfResonance: '0x80000000',
+    lpfMorph: '0x80000000',
+
+    hpfMode: 'HPLadder',
+    hpfFrequency: '0x80000000',
+    hpfResonance: '0x80000000',
+    hpfMorph: '0x80000000',
+
+    filterRoute: 'HPF2LPF',
+    waveFold: '0x80000000',
+
+    // LFOs (Community Firmware supports 4 LFOs total)
+    lfo1Type: 'triangle',
+    lfo1SyncLevel: '0',
+    lfo1SyncType: '0',
+    lfo1Rate: '0x1999997E',
+
+    lfo2Type: 'triangle',
+    lfo2SyncLevel: '0',
+    lfo2SyncType: '0',
+    lfo2Rate: '0x00000000',
+    
+    lfo3Type: 'triangle',
+    lfo3SyncLevel: '0',
+    lfo3SyncType: '0',
+    lfo3Rate: '0x00000000',
+    
+    lfo4Type: 'triangle',
+    lfo4SyncLevel: '0',
+    lfo4SyncType: '0',
+    lfo4Rate: '0x00000000',
+
+    // Effects
+    modFXType: 'none',
+    modFXRate: '0x00000000',
+    modFXDepth: '0x00000000',
+    modFXOffset: '0x00000000',
+    modFXFeedback: '0x00000000',
+
+    delayPingPong: '1',
+    delayAnalog: '1',
+    delaySyncLevel: '7',
+    delaySyncType: '0',
+    delayRate: '0x00000000',
+    delayFeedback: '0x80000000',
+
+    reverbAmount: '0x80000000',
+
+    bass: '0x00000000',
+    treble: '0x00000000',
+    bassFrequency: '0x00000000',
+    trebleFrequency: '0x00000000',
+
+    sampleRateReduction: '0x80000000',
+    bitCrush: '0x80000000',
+    stutterRate: '0x00000000',
+
+    // Sidechain/Compressor
+    sidechainSend: '0',        // Sidechain send level (sound attribute)
+    sidechainSyncLevel: '6',
+    sidechainSyncType: '0',
+    sidechainAttack: '327244',
+    sidechainRelease: '936',
+    
+    // Clipping
+    clippingAmount: '0',
+    compressorShape: '0xDC28F5B2',
+
+    // Arpeggiator
+    arpeggiatorGate: '0x00000000',
+    arpeggiatorRate: '0x00000000',
+
+    // FM parameters (for FM mode)
+    modulator1Amount: '0x80000000',
+    modulator1Feedback: '0x80000000',
+    modulator2Amount: '0x80000000',
+    modulator2Feedback: '0x80000000',
+    carrier1Feedback: '0x80000000',
+    carrier2Feedback: '0x80000000'
+};
+
+// Current state
+let currentState = { ...defaultParams };
+let patchCables = [];
+
+// Pass-through storage for parameters we don't have UI for
+// This preserves data when loading and re-saving files
+let passThroughData = {
+    soundAttributes: {},  // Attributes on <sound> tag we don't edit
+    osc1Attributes: {},   // Attributes on <osc1> we don't edit
+    osc2Attributes: {},   // Attributes on <osc2> we don't edit
+    osc1SubTags: '',      // Sub-tags inside <osc1> (like <zone>, <sampleRanges>)
+    osc2SubTags: '',      // Sub-tags inside <osc2>
+    unknownTags: ''       // Any tags we don't recognize
+};
+
+// Modulation sources and destinations
+const modSources = [
+    'none', 'lfo1', 'lfo2', 'envelope1', 'envelope2', 'envelope3', 'envelope4',
+    'velocity', 'note', 'aftertouch', 'x', 'y',
+    'compressor', 'random'
+];
+
+const modDestinations = [
+    'volume', 'pan', 'pitch',
+    'oscAVolume', 'oscAPitch', 'oscAPhaseWidth', 'oscAWavetablePosition',
+    'oscBVolume', 'oscBPitch', 'oscBPhaseWidth', 'oscBWavetablePosition',
+    'noiseVolume',
+    'lpfFrequency', 'lpfResonance',
+    'hpfFrequency', 'hpfResonance',
+    'lfo1Rate', 'lfo2Rate',
+    'modFXRate', 'modFXDepth',
+    'delayRate', 'delayFeedback',
+    'reverbAmount',
+    'env1Attack', 'env1Decay', 'env1Sustain', 'env1Release',
+    'env2Attack', 'env2Decay', 'env2Sustain', 'env2Release',
+    'env3Attack', 'env3Decay', 'env3Sustain', 'env3Release',
+    'env4Attack', 'env4Decay', 'env4Sustain', 'env4Release',
+    'carrier1Feedback', 'carrier2Feedback',
+    'modulator1Amount', 'modulator1Feedback',
+    'modulator2Amount', 'modulator2Feedback'
+];
+
+// ============================================================================
+// VALUE CONVERSION FUNCTIONS
+// ============================================================================
+
+// Convert UI value (-50 to 50) to Deluge hex format (signed 32-bit)
+function uiToHex(value, min = -50, max = 50) {
+    // Normalize to 0-1 range
+    const normalized = (value - min) / (max - min);
+
+    // Convert to signed 32-bit integer range
+    // 0x80000000 (-2147483648) to 0x7FFFFFFF (2147483647)
+    const deluge_min = -2147483648;
+    const deluge_max = 2147483647;
+    const delugeValue = Math.round(deluge_min + (normalized * (deluge_max - deluge_min)));
+
+    // Convert to unsigned for hex representation
+    const unsigned = delugeValue >>> 0;
+    return '0x' + unsigned.toString(16).toUpperCase().padStart(8, '0');
+}
+
+// Convert Deluge hex to UI value
+function hexToUI(hexStr, min = -50, max = 50) {
+    if (!hexStr || hexStr === '') return 0;
+
+    // Parse hex value
+    const unsigned = parseInt(hexStr, 16);
+    // Convert to signed
+    const signed = unsigned > 0x7FFFFFFF ? unsigned - 0x100000000 : unsigned;
+
+    // Normalize from Deluge range to 0-1
+    const deluge_min = -2147483648;
+    const deluge_max = 2147483647;
+    const normalized = (signed - deluge_min) / (deluge_max - deluge_min);
+
+    // Scale to UI range
+    return min + (normalized * (max - min));
+}
+
+// Format display values
+function formatDisplayValue(paramName, uiValue) {
+    const absValue = Math.abs(uiValue);
+
+    // Volume parameters
+    if (paramName.includes('Volume') || paramName === 'volume') {
+        if (uiValue <= -49) return '-∞ dB';
+        return uiValue.toFixed(1) + ' dB';
+    }
+
+    // Pan
+    if (paramName === 'pan') {
+        if (Math.abs(uiValue) < 1) return 'Center';
+        return uiValue > 0 ? 'R' + uiValue.toFixed(0) : 'L' + Math.abs(uiValue).toFixed(0);
+    }
+
+    // Filter frequency (approximate)
+    if (paramName.includes('Frequency') && (paramName.includes('lpf') || paramName.includes('hpf'))) {
+        const freq = 20 * Math.pow(1000, uiValue / 50);
+        if (freq < 1000) return freq.toFixed(0) + ' Hz';
+        return (freq / 1000).toFixed(1) + ' kHz';
+    }
+
+    // LFO Rate (approximate Hz)
+    if (paramName.includes('Rate') && paramName.includes('lfo')) {
+        const hz = 0.01 + (uiValue / 50) * 50;
+        return hz.toFixed(2) + ' Hz';
+    }
+
+    // Envelope times (rough approximation in ms)
+    if (paramName.includes('Attack') || paramName.includes('Decay') || paramName.includes('Release')) {
+        const ms = Math.pow(10, uiValue / 16.67) * 0.5;
+        if (ms < 10) return ms.toFixed(1) + ' ms';
+        if (ms < 1000) return ms.toFixed(0) + ' ms';
+        return (ms / 1000).toFixed(2) + ' s';
+    }
+
+    // Generic percentage
+    return uiValue.toFixed(0);
+}
+
