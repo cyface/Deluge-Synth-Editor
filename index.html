@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Deluge Synth Editor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@300&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -12,7 +15,10 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Raleway', sans-serif;
+            font-weight: 300;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
             background: #1a1a1a;
             color: #e0e0e0;
             padding: 20px;
@@ -21,6 +27,7 @@
         .container {
             max-width: 1400px;
             margin: 0 auto;
+            position: relative;
         }
 
         h1 {
@@ -28,7 +35,7 @@
             color: #ff6b35;
             margin-bottom: 30px;
             font-size: 2.5em;
-            text-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+            text-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
         }
 
         .actions {
@@ -47,7 +54,7 @@
             border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 300;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             transition: all 0.3s;
         }
@@ -167,7 +174,7 @@
             margin-top: 8px;
             font-size: 0.85em;
             color: #ff6b35;
-            font-weight: bold;
+            font-weight: 300;
         }
 
         /* Slider styling */
@@ -209,7 +216,7 @@
             margin-top: 5px;
             font-size: 0.85em;
             color: #ff6b35;
-            font-weight: bold;
+            font-weight: 300;
         }
 
         /* Select styling */
@@ -372,7 +379,7 @@
 
         .file-item.folder {
             color: #ff6b35;
-            font-weight: bold;
+            font-weight: 300;
         }
 
         .loading {

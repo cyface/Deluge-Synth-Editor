@@ -2,6 +2,46 @@
 // Main application logic, initialization, randomization
 
 // ============================================================================
+// THEME SWITCHER
+// ============================================================================
+
+/**
+ * Toggle between dark and light theme
+ */
+function toggleTheme() {
+    const body = document.body;
+    const themeIcon = document.getElementById('themeIcon');
+    const isLight = body.classList.contains('light-theme');
+    
+    if (isLight) {
+        // Switch to dark
+        body.classList.remove('light-theme');
+        themeIcon.textContent = '☀️';
+        localStorage.setItem('theme', 'dark');
+    } else {
+        // Switch to light
+        body.classList.add('light-theme');
+        themeIcon.textContent = '🌙';
+        localStorage.setItem('theme', 'light');
+    }
+}
+
+/**
+ * Initialize theme from localStorage
+ */
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const themeIcon = document.getElementById('themeIcon');
+    
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        if (themeIcon) themeIcon.textContent = '🌙';
+    } else {
+        if (themeIcon) themeIcon.textContent = '☀️';
+    }
+}
+
+// ============================================================================
 // RANDOMIZATION
 // ============================================================================
 
