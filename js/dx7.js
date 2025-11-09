@@ -425,8 +425,12 @@ function updateDX7Display(oscNum) {
     }
 }
 
+// Track current DX7 browser path and oscillator
+let currentDX7BrowserPath = '/DX7/';
+let currentDX7BrowserOsc = null;
+
 /**
- * Browse DX7 patches from Deluge SD card
+ * Browse DX7 patches from Deluge SD card (with folder navigation)
  */
 async function browseDX7FromDeluge(oscNum) {
     if (!delugeOutput) {
@@ -434,21 +438,11 @@ async function browseDX7FromDeluge(oscNum) {
         return;
     }
     
+    currentDX7BrowserPath = '/DX7/';
+    currentDX7BrowserOsc = oscNum;
+    
     try {
-        // Browse /DX7/ folder
-        const entries = await listDirectory('/DX7/');
-        const sysexFiles = entries.filter(e => 
-            !e.dir && e.name.toLowerCase().endsWith('.syx')
-        );
-        
-        if (sysexFiles.length === 0) {
-            showNotification('No .syx files found in /DX7/ folder', true);
-            return;
-        }
-        
-        // Show file browser
-        showDX7FileBrowser(sysexFiles, oscNum);
-        
+        await loadDX7Directory(currentDX7BrowserPath);
     } catch (error) {
         console.error('Error browsing DX7 patches:', error);
         showNotification(`✗ Error: ${error.message}`, true);
@@ -456,34 +450,126 @@ async function browseDX7FromDeluge(oscNum) {
 }
 
 /**
- * Show DX7 file browser dialog
+ * Load and display DX7 directory
  */
-function showDX7FileBrowser(files, oscNum) {
+async function loadDX7Directory(path) {
+    try {
+        showNotification('Loading DX7 directory...');
+        const entries = await listDirectory(path);
+        
+        // Filter system files
+        const filtered = filterSystemFiles(entries);
+        
+        // Show file browser
+        showDX7FileBrowser(filtered, path);
+        showNotification('');
+        
+    } catch (error) {
+        console.error('Error loading DX7 directory:', error);
+        showNotification(`✗ Error: ${error.message}`, true);
+    }
+}
+
+/**
+ * Show DX7 file browser dialog with folder navigation
+ */
+function showDX7FileBrowser(entries, currentPath) {
+    // Close existing browser if open
+    closeDX7FileBrowser();
+    
     const dialog = document.createElement('div');
     dialog.className = 'modal';
-    dialog.innerHTML = `
-        <div class="modal-content" style="max-width: 600px;">
-            <h2>DX7 Patches on Deluge</h2>
-            <div style="max-height: 400px; overflow-y: auto; margin: 20px 0;">
-                ${files.map(f => `
-                    <div class="dx7-file-item" data-name="${f.name}" style="padding: 10px; cursor: pointer; border-bottom: 1px solid #333;">
-                        📄 ${f.name}
-                    </div>
-                `).join('')}
+    dialog.id = 'dx7FileBrowser';
+    
+    // Create path breadcrumb
+    const pathParts = currentPath.split('/').filter(p => p);
+    const breadcrumb = '/' + pathParts.join(' / ');
+    
+    // Separate directories and files
+    const directories = entries.filter(e => e.dir).sort((a, b) => a.name.localeCompare(b.name));
+    const files = entries.filter(e => !e.dir && e.name.toLowerCase().endsWith('.syx')).sort((a, b) => a.name.localeCompare(b.name));
+    
+    let html = `
+        <div class="modal-content" style="max-width: 700px;">
+            <h2>DX7 Patches</h2>
+            <div style="margin: 10px 0; padding: 10px; background: #2a2a2a; border-radius: 3px; font-family: monospace;">
+                ${breadcrumb}
+            </div>
+    `;
+    
+    // Add "Up" button if not at root
+    if (currentPath !== '/DX7/') {
+        html += `
+            <button id="dx7BrowserUp" style="margin-bottom: 10px;">📁 .. (Up)</button>
+        `;
+    }
+    
+    html += `
+            <div id="dx7FileList" style="max-height: 400px; overflow-y: auto; margin: 20px 0;">
+    `;
+    
+    if (directories.length === 0 && files.length === 0) {
+        html += '<div style="padding: 20px; text-align: center; color: #888;">No .syx files or folders found</div>';
+    } else {
+        // Directories first
+        directories.forEach(dir => {
+            html += `
+                <div class="dx7-browser-item dx7-folder" data-name="${dir.name}" data-isdir="true" 
+                     style="padding: 10px; cursor: pointer; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 20px;">📁</span>
+                    <span style="flex: 1;">${dir.name}</span>
+                </div>
+            `;
+        });
+        
+        // Then files
+        files.forEach(file => {
+            html += `
+                <div class="dx7-browser-item dx7-file" data-name="${file.name}" data-isdir="false"
+                     style="padding: 10px; cursor: pointer; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 20px;">📄</span>
+                    <span style="flex: 1;">${file.name}</span>
+                </div>
+            `;
+        });
+    }
+    
+    html += `
             </div>
             <button onclick="closeDX7FileBrowser()">Cancel</button>
         </div>
     `;
     
+    dialog.innerHTML = html;
     document.body.appendChild(dialog);
     dialog.style.display = 'flex';
     
-    // Add click handlers
-    dialog.querySelectorAll('.dx7-file-item').forEach(item => {
+    // Add "Up" button handler
+    const upBtn = document.getElementById('dx7BrowserUp');
+    if (upBtn) {
+        upBtn.addEventListener('click', async () => {
+            const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/', currentPath.length - 2) + 1);
+            currentDX7BrowserPath = parentPath;
+            await loadDX7Directory(parentPath);
+        });
+    }
+    
+    // Add click handlers for items
+    document.querySelectorAll('.dx7-browser-item').forEach(item => {
         item.addEventListener('click', async () => {
-            const filename = item.dataset.name;
-            await loadDX7FromDeluge(filename, oscNum);
-            document.body.removeChild(dialog);
+            const name = item.dataset.name;
+            const isDir = item.dataset.isdir === 'true';
+            
+            if (isDir) {
+                // Navigate into directory
+                currentDX7BrowserPath = currentPath + name + '/';
+                await loadDX7Directory(currentDX7BrowserPath);
+            } else {
+                // Load file
+                const filepath = currentPath + name;
+                await loadDX7FromDeluge(filepath, currentDX7BrowserOsc);
+                closeDX7FileBrowser();
+            }
         });
     });
     
@@ -503,11 +589,11 @@ function closeDX7FileBrowser() {
 /**
  * Load DX7 patch from Deluge SD card
  */
-async function loadDX7FromDeluge(filename, oscNum) {
+async function loadDX7FromDeluge(filepath, oscNum) {
     try {
         showNotification('Loading DX7 patch from Deluge...');
         
-        const data = await readFile(`/DX7/${filename}`);
+        const data = await readFile(filepath);
         const parsed = parseDX7Sysex(data.buffer);
         
         if (parsed.isCartridge) {
@@ -516,6 +602,7 @@ async function loadDX7FromDeluge(filename, oscNum) {
             loadDX7Voice(parsed.voiceData, oscNum);
         }
         
+        const filename = filepath.substring(filepath.lastIndexOf('/') + 1);
         showNotification(`✓ Loaded DX7 patch: ${filename}`);
     } catch (error) {
         console.error('Error loading DX7 from Deluge:', error);
