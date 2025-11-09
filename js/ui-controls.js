@@ -356,6 +356,9 @@ function setupOscillatorTypeListeners() {
         osc1Type.addEventListener('change', () => {
             console.log('🔄 OSC1 Type changed to:', osc1Type.value);
             const isDX7 = osc1Type.value === 'dx7';
+            const isSampleType = osc1Type.value === 'sample' || osc1Type.value === 'wavetable';
+            
+            // Show/hide DX7 container
             const container = document.getElementById('osc1DX7Container');
             if (container) {
                 container.style.display = isDX7 ? 'block' : 'none';
@@ -363,6 +366,16 @@ function setupOscillatorTypeListeners() {
             if (isDX7) {
                 console.log('   Calling initializeDX7UI(1)...');
                 initializeDX7UI(1);
+            }
+            
+            // Clear sample/wavetable file if not using sample type
+            if (!isSampleType) {
+                const fileInput = document.getElementById('osc1File');
+                if (fileInput && fileInput.value) {
+                    console.log('   Clearing OSC1 file (type changed from sample/wavetable)');
+                    fileInput.value = '';
+                    currentState.osc1File = '';
+                }
             }
         });
         console.log('✅ OSC1 type change listener added');
@@ -372,6 +385,9 @@ function setupOscillatorTypeListeners() {
         osc2Type.addEventListener('change', () => {
             console.log('🔄 OSC2 Type changed to:', osc2Type.value);
             const isDX7 = osc2Type.value === 'dx7';
+            const isSampleType = osc2Type.value === 'sample' || osc2Type.value === 'wavetable';
+            
+            // Show/hide DX7 container
             const container = document.getElementById('osc2DX7Container');
             if (container) {
                 container.style.display = isDX7 ? 'block' : 'none';
@@ -379,6 +395,16 @@ function setupOscillatorTypeListeners() {
             if (isDX7) {
                 console.log('   Calling initializeDX7UI(2)...');
                 initializeDX7UI(2);
+            }
+            
+            // Clear sample/wavetable file if not using sample type
+            if (!isSampleType) {
+                const fileInput = document.getElementById('osc2File');
+                if (fileInput && fileInput.value) {
+                    console.log('   Clearing OSC2 file (type changed from sample/wavetable)');
+                    fileInput.value = '';
+                    currentState.osc2File = '';
+                }
             }
         });
         console.log('✅ OSC2 type change listener added');
