@@ -27,8 +27,6 @@ function setTheme(theme) {
     
     // Save to localStorage
     localStorage.setItem('colorTheme', theme);
-    
-    console.log('🎨 Theme changed to:', theme);
 }
 
 /**
@@ -242,6 +240,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    console.log('Deluge Synth Editor initialized!');
 });
 

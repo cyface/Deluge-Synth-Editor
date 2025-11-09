@@ -38,17 +38,12 @@ async function connectToDeluge() {
     }
 
     try {
-        console.log('Requesting MIDI access with SYSEX...');
         midiAccess = await navigator.requestMIDIAccess({ sysex: true });
 
-        console.log('Available MIDI outputs:');
         for (const output of midiAccess.outputs.values()) {
-            console.log(' -', output.name, output.id, output.manufacturer);
         }
 
-        console.log('Available MIDI inputs:');
         for (const input of midiAccess.inputs.values()) {
-            console.log(' -', input.name, input.id, input.manufacturer);
         }
 
         // Look for Deluge Port 3 (SYSEX port)
@@ -60,7 +55,6 @@ async function connectToDeluge() {
                 (output.name.includes('3') || output.name.toLowerCase().includes('sysex'))) {
                 delugeOutput = output;
                 foundDeluge = true;
-                console.log('✓ Found Deluge output (Port 3):', output.name);
                 break;
             }
         }
@@ -71,7 +65,6 @@ async function connectToDeluge() {
                 if (output.name.toLowerCase().includes('deluge')) {
                     delugeOutput = output;
                     foundDeluge = true;
-                    console.log('⚠ Found Deluge output (fallback):', output.name);
                     break;
                 }
             }
@@ -82,7 +75,6 @@ async function connectToDeluge() {
                 (input.name.includes('3') || input.name.toLowerCase().includes('sysex'))) {
                 delugeInput = input;
                 delugeInput.onmidimessage = handleMidiMessage;
-                console.log('✓ Found Deluge input (Port 3):', input.name);
                 break;
             }
         }
@@ -93,14 +85,12 @@ async function connectToDeluge() {
                 if (input.name.toLowerCase().includes('deluge')) {
                     delugeInput = input;
                     delugeInput.onmidimessage = handleMidiMessage;
-                    console.log('⚠ Found Deluge input (fallback):', input.name);
                     break;
                 }
             }
         }
 
         if (delugeOutput && delugeInput) {
-            console.log('Deluge MIDI ports found. Connection ready.');
             
             // Connect directly like DEx does - session will be established on first command
             document.getElementById('connectionStatus').innerHTML =
@@ -125,7 +115,6 @@ async function connectToDeluge() {
             
             // Optional: Test connection in background (non-blocking)
             ping().then(() => {
-                console.log('✓ Background ping test succeeded');
             }).catch((err) => {
                 console.warn('Background ping test failed (but connection is ready):', err);
             });
@@ -223,7 +212,6 @@ async function openSession(tag = 'DelugeSynthEditor') {
         return currentSession;
     }
     
-    console.log('Opening smSysex session with tag:', tag);
     const sessionCmd = { session: { tag } };
     const jsonData = JSON.stringify(sessionCmd);
     const jsonBytes = new TextEncoder().encode(jsonData);
@@ -252,18 +240,15 @@ async function openSession(tag = 'DelugeSynthEditor') {
             clearTimeout(timeoutId);
             cleanup();
             
-            console.log('Session response received:', response);
             
             if (response.json && response.json['^session']) {
                 const info = response.json['^session'];
-                console.log('Session info:', info);
                 currentSession = {
                     sid: info.sid,
                     midMin: info.midMin,
                     midMax: info.midMax,
                     counter: 1
                 };
-                console.log('✓ Session established successfully:', currentSession);
                 resolve(currentSession);
             } else {
                 console.error('Invalid session response format:', response);
@@ -274,8 +259,6 @@ async function openSession(tag = 'DelugeSynthEditor') {
         pendingResponses.set(0, responseHandler);
         
         if (delugeOutput) {
-            console.log('Sending session request:', Array.from(message.slice(0, 30)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
-            console.log('JSON:', jsonData);
             delugeOutput.send(message);
         } else {
             cleanup();
@@ -293,7 +276,6 @@ async function ensureSession() {
     }
     
     // Try to create new session
-    console.log('Creating new session...');
     currentSession = null;
     messagesSentInSession = 0;
     
@@ -317,7 +299,6 @@ async function ensureSession() {
  * Reset the current session
  */
 function resetSession() {
-    console.log('Resetting session');
     currentSession = null;
     messagesSentInSession = 0;
 }
@@ -331,14 +312,12 @@ function handleMidiMessage(event) {
     const data = new Uint8Array(event.data);
 
     // Log all SYSEX for debugging
-    console.log('MIDI message received:', data.length, 'bytes');
 
     // Check if it's a SYSEX message
     if (data[0] !== SYSEX_START) {
         return;
     }
     
-    console.log('SYSEX message:', Array.from(data.slice(0, 20)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
 
     // Determine manufacturer ID type (standard or dev)
     const isDevId = data[1] === 0x7D;
@@ -401,7 +380,6 @@ function handleMidiMessage(event) {
         
         // Call pending callback if exists
         if (pendingResponses.has(msgId)) {
-            console.log('Calling callback for msgId', msgId.toString(16));
             const callback = pendingResponses.get(msgId);
             pendingResponses.delete(msgId);
             callback(response);
@@ -483,7 +461,6 @@ async function ping() {
     const session = await ensureSession();
     const response = await sendJson({ ping: {} });
     if (response.json['^ping']) {
-        console.log('✓ Ping successful');
         return true;
     }
     throw new Error('Invalid ping response');
@@ -695,7 +672,6 @@ async function listDirectory(path, forceRefresh = false) {
         }
     }
     
-    console.log('✓ Loaded', allEntries.length, 'files from', path);
     
     // Cache the result
     directoryCache.set(path, allEntries);

@@ -192,9 +192,8 @@ function drawEnvelope(canvasId, attack, decay, sustain, release, sustainMin = 0,
     const totalTime = attackTime + decayTime + sustainTime + releaseTime;
     const scale = (width - 40) / totalTime;
 
-    // Draw envelope - get accent color from CSS variable
-    const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim();
-    ctx.strokeStyle = accentColor || '#ff6b35';
+    // Draw envelope
+    ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -355,7 +354,6 @@ function setupOscillatorTypeListeners() {
     
     if (osc1Type) {
         osc1Type.addEventListener('change', () => {
-            console.log('🔄 OSC1 Type changed to:', osc1Type.value);
             const isDX7 = osc1Type.value === 'dx7';
             const isSampleType = osc1Type.value === 'sample' || osc1Type.value === 'wavetable';
             
@@ -365,7 +363,6 @@ function setupOscillatorTypeListeners() {
                 container.style.display = isDX7 ? 'block' : 'none';
             }
             if (isDX7) {
-                console.log('   Calling initializeDX7UI(1)...');
                 initializeDX7UI(1);
             }
             
@@ -373,18 +370,15 @@ function setupOscillatorTypeListeners() {
             if (!isSampleType) {
                 const fileInput = document.getElementById('osc1File');
                 if (fileInput && fileInput.value) {
-                    console.log('   Clearing OSC1 file (type changed from sample/wavetable)');
                     fileInput.value = '';
                     currentState.osc1File = '';
                 }
             }
         });
-        console.log('✅ OSC1 type change listener added');
     }
     
     if (osc2Type) {
         osc2Type.addEventListener('change', () => {
-            console.log('🔄 OSC2 Type changed to:', osc2Type.value);
             const isDX7 = osc2Type.value === 'dx7';
             const isSampleType = osc2Type.value === 'sample' || osc2Type.value === 'wavetable';
             
@@ -394,7 +388,6 @@ function setupOscillatorTypeListeners() {
                 container.style.display = isDX7 ? 'block' : 'none';
             }
             if (isDX7) {
-                console.log('   Calling initializeDX7UI(2)...');
                 initializeDX7UI(2);
             }
             
@@ -402,13 +395,11 @@ function setupOscillatorTypeListeners() {
             if (!isSampleType) {
                 const fileInput = document.getElementById('osc2File');
                 if (fileInput && fileInput.value) {
-                    console.log('   Clearing OSC2 file (type changed from sample/wavetable)');
                     fileInput.value = '';
                     currentState.osc2File = '';
                 }
             }
         });
-        console.log('✅ OSC2 type change listener added');
     }
 }
 

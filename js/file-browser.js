@@ -79,7 +79,6 @@ async function loadDirectory(path, forceRefresh = false) {
  * Refresh the current directory (bypass cache)
  */
 function refreshDirectory() {
-    console.log('🔄 Refresh clicked for:', currentBrowserPath);
     showNotification('🔄 Refreshing directory...');
     loadDirectory(currentBrowserPath, true);
 }
@@ -258,7 +257,6 @@ function browseSampleForOsc(oscNum) {
  * Open DX7 browser for a specific oscillator (reuses sample browser)
  */
 function browseDX7ForOsc(oscNum) {
-    console.log('🎹 browseDX7ForOsc called with oscNum:', oscNum);
     
     if (!delugeOutput) {
         showNotification('✗ Not connected to Deluge', true);
@@ -273,7 +271,6 @@ function browseDX7ForOsc(oscNum) {
     
     currentSampleOscTarget = oscNum;
     currentSampleBrowserMode = 'dx7';
-    console.log('   Set currentSampleOscTarget to:', currentSampleOscTarget);
     
     // Update modal title and show it
     const modal = document.getElementById('sampleBrowserModal');
@@ -294,7 +291,6 @@ function browseDX7ForOsc(oscNum) {
     
     // Start from /DX7/ folder (or root if it doesn't exist)
     currentSampleBrowserPath = '/DX7/';
-    console.log('🎹 Opening DX7 browser at /DX7/, mode:', currentSampleBrowserMode);
     loadSampleDirectory('/DX7/');
 }
 
@@ -302,12 +298,10 @@ function browseDX7ForOsc(oscNum) {
  * Close sample browser
  */
 function closeSampleBrowser() {
-    console.log('🚪 closeSampleBrowser called');
     console.trace('Call stack:'); // Show where it was called from
     document.getElementById('sampleBrowserModal').classList.remove('show');
     currentSampleOscTarget = null;
     currentSampleBrowserMode = 'sample'; // Reset mode
-    console.log('   Reset currentSampleOscTarget to null');
 }
 
 /**
@@ -332,7 +326,6 @@ async function loadSampleDirectory(path, forceRefresh = false) {
  * Refresh sample directory
  */
 function refreshSampleDirectory() {
-    console.log('🔄 Sample refresh clicked for:', currentSampleBrowserPath);
     showNotification('🔄 Refreshing samples...');
     loadSampleDirectory(currentSampleBrowserPath, true);
 }
@@ -341,7 +334,6 @@ function refreshSampleDirectory() {
  * Render sample file list (also used for DX7 browser)
  */
 function renderSampleFileList(entries, path) {
-    console.log('📂 Rendering file list - Mode:', currentSampleBrowserMode, 'Path:', path, 'Entries:', entries.length);
     
     const fileList = document.getElementById('sampleFileList');
     fileList.innerHTML = '';
@@ -408,7 +400,6 @@ function renderSampleFileList(entries, path) {
                     // DX7 mode: show .syx files
                     isValidFile = name.toUpperCase().endsWith('.SYX');
                     if (isValidFile) {
-                        console.log('✓ DX7 file found:', name);
                     }
                 } else {
                     // Sample mode: show audio files
@@ -474,7 +465,6 @@ async function selectDX7File(filepath) {
     
     // CRITICAL: Save oscTarget BEFORE closing browser (which sets it to null)
     const oscTarget = currentSampleOscTarget;
-    console.log('💾 Saved oscTarget:', oscTarget, 'before closing browser');
     
     closeSampleBrowser();
     
@@ -484,19 +474,9 @@ async function selectDX7File(filepath) {
         const data = await readFile(filepath);
         const parsed = parseDX7Sysex(data.buffer);
         
-        console.log('📦 DX7 file parsed:', {
-            isCartridge: parsed.isCartridge,
-            numPatches: parsed.numPatches,
-            voiceDataSize: parsed.voiceData.length
-        });
-        
         if (parsed.isCartridge) {
-            console.log('🎵 Opening cartridge selector with 32 patches');
-            console.log('   Using saved oscTarget:', oscTarget);
             showDX7CartridgeSelector(parsed.voiceData, oscTarget, filepath);
         } else {
-            console.log('🎵 Loading single voice directly');
-            console.log('   Using saved oscTarget:', oscTarget);
             loadDX7Voice(parsed.voiceData, oscTarget, filepath);
         }
         
