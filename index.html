@@ -389,28 +389,29 @@
         </div>
         <h1>Synth Editor</h1>
 
-        <div style="text-align: center; margin-bottom: 15px;">
-            <label style="color: #888; font-size: 0.9em; cursor: pointer;">
-                <input type="checkbox" id="experimentalToggle" onchange="toggleExperimental()" style="margin-right: 8px;">
-                Show Experimental Features (SYSEX - not working yet)
-            </label>
+        <!-- Preset Name Section -->
+        <div style="margin-bottom: 20px;">
+            <input type="text" id="presetName" class="preset-name" placeholder="Preset Name" value="My Synth" 
+                   style="width: 100%; text-align: center; font-size: 18px; font-weight: bold;">
+            <div id="savePathIndicator" style="display: none; text-align: center; font-size: 12px; color: #888; font-family: monospace; margin-top: 5px;">
+                💾 Will save to: <span id="savePathText">/SYNTHS/MY SYNTH.XML</span>
+            </div>
         </div>
 
-        <div class="actions">
-            <input type="text" id="presetName" class="preset-name" placeholder="Preset Name" value="My Synth">
-            <span id="sysexButtons" style="display: none;">
-                <button id="connectBtn" onclick="connectToDeluge()">🔌 Connect to Deluge</button>
-                <button id="sendToDelugeBtn" onclick="sendToDeluge()" disabled>📤 Send to Deluge</button>
-                <button id="loadFromDelugeBtn" onclick="showDelugeBrowser()" disabled>📥 Load from Deluge</button>
-            </span>
+        <!-- Connection Status -->
+        <div id="connectionStatus" style="text-align: center; margin-bottom: 15px; color: #888; font-size: 0.9em;">
+            Not connected to Deluge
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="actions" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+            <button id="connectBtn" onclick="connectToDeluge()">🔌 Connect to Deluge</button>
+            <button id="sendToDelugeBtn" onclick="sendToDeluge()" style="display: none;">📤 Send to Deluge</button>
+            <button id="loadFromDelugeBtn" onclick="showDelugeBrowser()" style="display: none;">📥 Load from Deluge</button>
             <button onclick="loadXML()">Load XML File</button>
             <button onclick="downloadXML()">Download XML</button>
             <button onclick="randomizePreset()">🎲 Randomize</button>
             <button onclick="resetToDefault()">Reset to Default</button>
-        </div>
-
-        <div id="connectionStatus" style="text-align: center; margin-bottom: 15px; color: #888; font-size: 0.9em; display: none;">
-            Not connected to Deluge
         </div>
 
         <div class="tabs">
@@ -516,7 +517,10 @@
                 <div class="controls-grid" style="margin-top: 20px;">
                     <div class="control-group" style="grid-column: span 2;">
                         <label class="control-label">Sample/Wavetable File (optional)</label>
-                        <input type="text" id="osc1File" placeholder="SAMPLES/your-sample.wav">
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" id="osc1File" placeholder="SAMPLES/your-sample.wav" style="flex: 1;">
+                            <button id="osc1FileBrowse" onclick="browseSampleForOsc(1)" style="padding: 5px 10px; display: none;" title="Browse samples on Deluge">📁</button>
+                        </div>
                     </div>
                 </div>
                 <div class="controls-grid" style="margin-top: 20px;">
@@ -577,7 +581,10 @@
                 <div class="controls-grid" style="margin-top: 20px;">
                     <div class="control-group" style="grid-column: span 2;">
                         <label class="control-label">Sample/Wavetable File (optional)</label>
-                        <input type="text" id="osc2File" placeholder="SAMPLES/your-sample.wav">
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" id="osc2File" placeholder="SAMPLES/your-sample.wav" style="flex: 1;">
+                            <button id="osc2FileBrowse" onclick="browseSampleForOsc(2)" style="padding: 5px 10px; display: none;" title="Browse samples on Deluge">📁</button>
+                        </div>
                     </div>
                 </div>
                 <div class="controls-grid" style="margin-top: 20px;">
@@ -1109,18 +1116,40 @@
 
     <div id="notification" class="notification"></div>
 
-    <!-- Directory Browser Modal -->
+    <!-- Directory Browser Modal (for Synth Presets) -->
     <div id="browserModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-title">Browse Deluge Presets</div>
                 <button class="close-btn" onclick="closeBrowser()">✕</button>
             </div>
-            <div id="currentPath" style="margin-bottom: 15px; color: #888; font-family: monospace;">
-                /SYNTHS/
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                <div id="currentPath" style="color: #888; font-family: monospace; flex: 1;">
+                    /SYNTHS/
+                </div>
+                <button onclick="refreshDirectory()" style="padding: 5px 10px; font-size: 14px;" title="Refresh directory listing">🔄 Refresh</button>
             </div>
             <div id="fileList" class="file-list">
-                <div class="loading">Loading...</div>
+                <div class="loading">Loading, can take a while on first go...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sample Browser Modal -->
+    <div id="sampleBrowserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Browse Samples</div>
+                <button class="close-btn" onclick="closeSampleBrowser()">✕</button>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                <div id="sampleCurrentPath" style="color: #888; font-family: monospace; flex: 1;">
+                    /SAMPLES/
+                </div>
+                <button onclick="refreshSampleDirectory()" style="padding: 5px 10px; font-size: 14px;" title="Refresh directory listing">🔄 Refresh</button>
+            </div>
+            <div id="sampleFileList" class="file-list">
+                <div class="loading">Loading, can take a while on first go...</div>
             </div>
         </div>
     </div>

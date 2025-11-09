@@ -1,34 +1,37 @@
 # Deluge SYSEX Connection Setup Guide
 
-## ⚠️ EXPERIMENTAL FEATURE
+## ✅ WORKING FEATURE
 
-The JSON SYSEX file API appears to be **incomplete/non-functional** in current Deluge firmware. The code exists but doesn't respond to messages. This feature is hidden by default in the editor.
+The SYSEX file transfer feature is **now fully functional** using the DEx smSysex protocol! You can now:
+- 📤 Send presets directly to Deluge (no SD card removal)
+- 📥 Browse and load presets from Deluge's SD card
+- 🎨 Edit patches live and save them instantly
 
-**We recommend using the standard workflow:** Download XML → Copy to SD card
-
-**Only proceed if you want to experiment with this feature.**
+**Requirements:** Deluge firmware 4.0+ or Community Firmware 1.3+
 
 ---
 
-## Quick Setup (if you want to try)
+## Quick Setup
 
 ### 1. Hardware Connection
 - Connect your Deluge to your computer using **USB Port 3** (rightmost USB port on the back of Deluge)
 - Power on the Deluge
 
 ### 2. Browser Setup
-- Open `deluge-synth-editor.html` in **Chrome** or **Edge** (recommended)
+- Open `index.html` in **Chrome** or **Edge** (recommended)
 - Other browsers may require additional configuration
 
 ### 3. Connect
-- Click the **"🔌 Connect to Deluge"** button
+- Click the **"🔌 Connect to Deluge"** button (visible by default)
 - Browser will prompt for MIDI device permission - click **"Allow"**
-- Editor will automatically find and connect to Deluge Port 3
+- Editor will establish a session and test the connection
 - Connection status will show: **"✅ Connected to [Deluge Port Name]"**
 
 ### 4. Start Using!
-- **📤 Send to Deluge** - Writes XML directly to Deluge SD card
-- **📥 Load from Deluge** - Browse and load presets from Deluge
+- **📤 Send to Deluge** - Writes preset directly to `/SYNTHS/` folder (or subfolders)
+- **📥 Load from Deluge** - Browse `/SYNTHS/` folder and load any preset
+- **📁 Browse Samples** - Browse buttons appear next to OSC sample inputs
+- **No SD card removal needed!** 🎉
 
 ## Troubleshooting
 
@@ -61,46 +64,61 @@ The JSON SYSEX file API appears to be **incomplete/non-functional** in current D
 2. Develop → Experimental Features → Web MIDI API
 3. Restart Safari
 
-### Connection Works but Can't Send Files
+### Connection Works but Can't Send/Load Files
 
-**This might mean the JSON SYSEX API needs the Dev Sysex setting enabled:**
+**Check your firmware version:**
 
-1. On Deluge: Navigate to **Settings → Community Features → Dev Sysex**
-2. Turn it **ON**
-3. Note the hex key displayed (e.g., "on - 1A2B3C4D")
-4. You don't need to enter this key anywhere - just enabling it should allow file operations
+The smSysex protocol is available in:
+- **Deluge Firmware 4.0+** (official)
+- **Community Firmware 1.3+**
 
-**OR** it might be a different firmware version issue. The JSON SYSEX file API is available in Community Firmware c1.0+.
+If you're on an older version, you'll need to update your Deluge firmware.
 
 ## Technical Details
 
-### SYSEX Message Format
+### SYSEX Message Format (DEx smSysex Protocol)
 
 All messages use the Deluge manufacturer ID:
 ```
-F0 00 21 7B 01 05 [msgId] [JSON payload] F7
+F0 00 21 7B 01 [cmd] [msgId] [JSON payload] [0x00] [7-bit packed binary] F7
 ```
 
 - `F0` = SYSEX start
-- `00 21 7B` = Synthstrom manufacturer ID
-- `01` = Deluge device ID
-- `05` = JSON command
-- `[msgId]` = Message sequence number (0-255)
+- `00 21 7B 01` = Synthstrom Deluge manufacturer ID
+- `[cmd]` = Command byte (0x04 = JSON command, 0x05 = JSON reply)
+- `[msgId]` = Message ID from session range (e.g., 0x41-0x4F)
 - `[JSON payload]` = JSON-formatted command
+- `[0x00]` = Separator (only for commands with binary data)
+- `[7-bit packed binary]` = Optional binary payload (write/read operations)
 - `F7` = SYSEX end
+
+### Session Management
+
+The editor uses proper session management:
+1. Establishes session with Deluge on connect
+2. Receives message ID range (e.g., 0x41-0x4F)
+3. Rotates through message IDs for each command
+4. Creates new session after 100 messages
 
 ### Supported Commands
 
+- `{"session":{"tag":"DelugeSynthEditor"}}` - Establish session
 - `{"ping":{}}` - Test connection
-- `{"open":{"path":"/SYNTHS/test.XML","write":1}}` - Open file for writing
-- `{"write":{"fid":1,"size":1024}}[encoded data]` - Write data block
-- `{"read":{"fid":1,"addr":0,"size":1024}}` - Read data block
+- `{"open":{"path":"/SYNTHS/PRESET.XML","write":1}}` - Open file for writing
+- `{"write":{"fid":1,"addr":0,"size":128}}` + binary - Write 128-byte chunk
+- `{"open":{"path":"/SYNTHS/PRESET.XML","write":0}}` - Open file for reading
+- `{"read":{"fid":1,"addr":0,"size":1024}}` - Read 1024-byte chunk
 - `{"close":{"fid":1}}` - Close file
 - `{"dir":{"path":"/SYNTHS/"}}` - List directory
 
-### Data Encoding
+### 7-Bit Data Encoding
 
-Data is 7-bit encoded to be SYSEX-safe (no bytes > 0x7F except start/end markers).
+Binary data is packed into 7-bit format for SYSEX compatibility:
+- Every 7 bytes of data becomes 8 bytes in SYSEX
+- First byte: MSBs of the next 7 bytes
+- Next 7 bytes: Lower 7 bits of each input byte
+
+This allows safe transmission of XML files through MIDI SYSEX.
 
 ### USB Port 3
 
@@ -108,20 +126,25 @@ Port 3 is specifically designated for SYSEX communication in the Deluge firmware
 
 ## Security Note
 
-The JSON SYSEX file API allows reading and writing files on the Deluge SD card. This is a powerful feature - use responsibly!
+The SYSEX file API allows reading and writing files on the Deluge SD card in the `/SYNTHS/` folder only. This editor is restricted to synth presets for safety.
 
-If you're concerned about security:
+Best practices:
 1. Only connect when actively transferring files
 2. Close the browser tab when done
-3. The "Dev Sysex" setting can be turned off when not in use (though it may not be required for file operations)
+3. The file browser is locked to `/SYNTHS/` - you cannot access other folders
 
 ## Advantages of SYSEX Transfer
 
-✅ **No SD card removal needed**
-✅ **Instant preset transfer**
-✅ **Browse Deluge's entire SYNTHS folder**
-✅ **Load, edit, and save back** in seconds
-✅ **Works while Deluge is running**
+✅ **No SD card removal needed** - Stay in creative flow!
+✅ **Instant preset transfer** - Send patches in seconds
+✅ **Browse /SYNTHS/ folder** - See all your presets at a glance
+✅ **Load, edit, and save back** - Live sound design workflow
+✅ **Works while Deluge is running** - No need to power down
+✅ **Based on DEx protocol** - Battle-tested, reliable implementation
 
 Perfect for sound design workflows!
+
+## Credits
+
+This implementation is based on the excellent [DEx (Deluge Extensions)](https://github.com/silicakes/deluge-extensions) project by silicakes, which pioneered the smSysex protocol support for the Deluge.
 

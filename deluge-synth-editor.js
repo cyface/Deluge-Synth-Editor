@@ -1,32 +1,47 @@
 // Deluge Synth Editor JavaScript
 
 // ============================================================================
-// EXPERIMENTAL FEATURES TOGGLE
+// SAVE PATH INDICATOR
 // ============================================================================
 
-function toggleExperimental() {
-    const enabled = document.getElementById('experimentalToggle').checked;
-    const sysexButtons = document.getElementById('sysexButtons');
-    const connectionStatus = document.getElementById('connectionStatus');
-
-    if (enabled) {
-        sysexButtons.style.display = 'inline';
-        connectionStatus.style.display = 'block';
-        showNotification('⚠ SYSEX features enabled (experimental - may not work yet)');
-    } else {
-        sysexButtons.style.display = 'none';
-        connectionStatus.style.display = 'none';
-        // Disconnect if connected
-        if (delugeOutput) {
-            delugeOutput = null;
-            delugeInput = null;
-            document.getElementById('connectionStatus').innerHTML = 'Not connected to Deluge';
-            document.getElementById('connectionStatus').style.color = '#888';
-            document.getElementById('connectBtn').textContent = '🔌 Connect to Deluge';
-            document.getElementById('connectBtn').disabled = false;
-        }
+/**
+ * Update the save path indicator to show where file will be saved
+ */
+function updateSavePathIndicator() {
+    if (!delugeOutput) {
+        return;
     }
+    
+    const presetName = document.getElementById('presetName').value || 'My Synth';
+    const filename = presetName.replace(/[\/\\:*?"<>|]/g, '_').toUpperCase() + '.XML';
+    
+    let filepath;
+    
+    if (originalLoadedFilepath) {
+        const originalDir = originalLoadedFilepath.substring(0, originalLoadedFilepath.lastIndexOf('/') + 1);
+        const originalFilename = originalLoadedFilepath.substring(originalLoadedFilepath.lastIndexOf('/') + 1);
+        const nameChanged = originalFilename.toUpperCase() !== filename;
+        
+        if (nameChanged) {
+            filepath = '/SYNTHS/' + filename;
+        } else {
+            filepath = originalLoadedFilepath;
+        }
+    } else {
+        filepath = '/SYNTHS/' + filename;
+    }
+    
+    document.getElementById('savePathText').textContent = filepath;
 }
+
+// Listen for preset name changes
+document.addEventListener('DOMContentLoaded', () => {
+    const presetNameInput = document.getElementById('presetName');
+    if (presetNameInput) {
+        presetNameInput.addEventListener('input', updateSavePathIndicator);
+    }
+});
+
 
 // ============================================================================
 // WEB MIDI / DELUGE CONNECTION
@@ -35,18 +50,27 @@ function toggleExperimental() {
 let midiAccess = null;
 let delugeOutput = null;
 let delugeInput = null;
-let sessionId = 0;
-let messageId = 0;
+let currentSession = null; // {sid, midMin, midMax, counter}
+let messagesSentInSession = 0;
 let pendingResponses = new Map(); // Map of messageId -> callback
-let currentFileId = null;
 let currentBrowserPath = '/SYNTHS/';
+let currentSampleBrowserPath = '/SAMPLES/';
+let currentSampleOscTarget = null; // Which oscillator (1 or 2) we're browsing for
+let originalLoadedFilepath = null; // Track the full original filepath when loading from Deluge
+let directoryCache = new Map(); // Cache directory listings for faster browsing
+let cacheTimestamp = new Map(); // Track when cache entries were created
+const MAX_MESSAGES_PER_SESSION = 100;
+const CACHE_DURATION_MS = 30000; // Cache directory listings for 30 seconds
 
-// Deluge SYSEX manufacturer ID
+// Deluge SYSEX manufacturer ID and commands (DEx smSysex protocol)
 const SYSEX_START = 0xF0;
 const SYSEX_END = 0xF7;
-const DELUGE_SYSEX_ID = [0x00, 0x21, 0x7B, 0x01]; // Synthstrom Deluge
-const SYSEX_CMD_JSON = 0x05;
-const SYSEX_CMD_JSON_REPLY = 0x06;
+const STD_MANUFACTURER_ID = [0x00, 0x21, 0x7B, 0x01]; // Synthstrom Deluge
+const DEV_MANUFACTURER_ID = [0x7D]; // Developer ID for testing
+const SYSEX_CMD_PING = 0x00;
+const SYSEX_CMD_JSON = 0x04;  // JSON command (was 0x05)
+const SYSEX_CMD_JSON_REPLY = 0x05;  // JSON reply (was 0x06)
+const SYSEX_CMD_PONG = 0x7F;
 
 // Connect to Deluge via Web MIDI (Port 3)
 async function connectToDeluge() {
@@ -118,49 +142,35 @@ async function connectToDeluge() {
         }
 
         if (delugeOutput && delugeInput) {
-            console.log('Testing connection with ping...');
+            console.log('Deluge MIDI ports found. Connection ready.');
+            
+            // Connect directly like DEx does - session will be established on first command
+            document.getElementById('connectionStatus').innerHTML =
+                '✅ Connected to <strong>' + delugeOutput.name + '</strong>';
+            document.getElementById('connectionStatus').style.color = '#4CAF50';
+            document.getElementById('connectBtn').textContent = '✅ Connected';
+            document.getElementById('connectBtn').disabled = true;
+            
+            // Show the Send and Load buttons
+            document.getElementById('sendToDelugeBtn').style.display = 'inline';
+            document.getElementById('loadFromDelugeBtn').style.display = 'inline';
+            
+            // Show sample browse buttons
+            document.getElementById('osc1FileBrowse').style.display = 'inline';
+            document.getElementById('osc2FileBrowse').style.display = 'inline';
+            
+            // Show and update save path indicator
+            document.getElementById('savePathIndicator').style.display = 'block';
+            updateSavePathIndicator();
 
-            // Test connection with ping
-            try {
-                await sendPing();
-
-                document.getElementById('connectionStatus').innerHTML =
-                    '✅ Connected to <strong>' + delugeOutput.name + '</strong>';
-                document.getElementById('connectionStatus').style.color = '#4CAF50';
-                document.getElementById('connectBtn').textContent = '✅ Connected';
-                document.getElementById('connectBtn').disabled = true;
-                document.getElementById('sendToDelugeBtn').disabled = false;
-                document.getElementById('loadFromDelugeBtn').disabled = false;
-
-                showNotification('✓ Connected to Deluge');
-            } catch (pingError) {
-                console.error('Ping failed:', pingError);
-
-                const response = confirm(
-                    'Found Deluge but ping failed (timeout).\n\n' +
-                    'REQUIRED: Enable "Dev Sysex" on Deluge:\n' +
-                    '  Settings → Community Features → Dev Sysex → ON\n\n' +
-                    'After enabling, click OK to connect anyway.\n' +
-                    'Click Cancel to abort.\n\n' +
-                    '(You can try sending presets - it might work even without ping)'
-                );
-
-                if (response) {
-                    // Connect anyway
-                    document.getElementById('connectionStatus').innerHTML =
-                        '⚠️ Connected (no ping) to <strong>' + delugeOutput.name + '</strong>';
-                    document.getElementById('connectionStatus').style.color = '#FFA726';
-                    document.getElementById('connectBtn').textContent = '⚠️ Connected';
-                    document.getElementById('connectBtn').disabled = true;
-                    document.getElementById('sendToDelugeBtn').disabled = false;
-                    document.getElementById('loadFromDelugeBtn').disabled = false;
-
-                    showNotification('⚠ Connected without ping - try sending a preset');
-                } else {
-                    delugeOutput = null;
-                    delugeInput = null;
-                }
-            }
+            showNotification('✓ Connected to Deluge - ready to send/receive files');
+            
+            // Optional: Test connection in background (non-blocking)
+            ping().then(() => {
+                console.log('✓ Background ping test succeeded');
+            }).catch((err) => {
+                console.warn('Background ping test failed (but connection is ready):', err);
+            });
         } else {
             let errorMsg = 'Could not find Deluge.\n\nAvailable MIDI devices:\n';
             for (const output of midiAccess.outputs.values()) {
@@ -176,245 +186,599 @@ async function connectToDeluge() {
     }
 }
 
-// Handle incoming MIDI messages
-function handleMidiMessage(event) {
-    const data = event.data;
+// ============================================================================
+// 7-BIT PACKING/UNPACKING FOR SYSEX BINARY DATA
+// ============================================================================
 
-    // Log ALL incoming MIDI for debugging
-    console.log('Received MIDI message:', Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
-
-    // Check if it's a SYSEX message
-    if (data[0] !== SYSEX_START) {
-        console.log('Not SYSEX (status byte:', '0x' + data[0].toString(16) + ')');
-        return;
-    }
-
-    // Check for Deluge manufacturer ID
-    if (data[1] !== DELUGE_SYSEX_ID[0] ||
-        data[2] !== DELUGE_SYSEX_ID[1] ||
-        data[3] !== DELUGE_SYSEX_ID[2] ||
-        data[4] !== DELUGE_SYSEX_ID[3]) {
-        console.log('Not a Deluge SYSEX message (wrong manufacturer ID)');
-        return;
-    }
-
-    // Check if it's a JSON reply
-    if (data[5] !== SYSEX_CMD_JSON_REPLY) {
-        console.log('Not a JSON reply (command byte:', data[5], ')');
-        return;
-    }
-
-    const msgId = data[6];
-    const jsonStart = 7;
-    const jsonEnd = data.length - 1; // Exclude F7
-
-    // Decode JSON from SYSEX bytes (it's just ASCII)
-    let jsonStr = '';
-    for (let i = jsonStart; i < jsonEnd; i++) {
-        jsonStr += String.fromCharCode(data[i]);
-    }
-
-    console.log('Received JSON (msgId=' + msgId + '):', jsonStr);
-
-    try {
-        const response = JSON.parse(jsonStr);
-
-        // Call pending callback if exists
-        if (pendingResponses.has(msgId)) {
-            console.log('Calling callback for msgId', msgId);
-            const callback = pendingResponses.get(msgId);
-            callback(response);
-            pendingResponses.delete(msgId);
-        } else {
-            console.log('No pending callback for msgId', msgId);
+/**
+ * Packs 8-bit data into 7-bit clean format for SYSEX
+ * Every 7 bytes becomes 8 bytes (1 MSB header + 7 data bytes)
+ * Based on DEx implementation
+ */
+function pack8bitTo7bit(dataIn) {
+    const result = [];
+    let n = 0;
+    while (n < dataIn.length) {
+        const count = Math.min(7, dataIn.length - n);
+        let msbs = 0;
+        const dataBytesForGroup = [];
+        for (let i = 0; i < count; i++) {
+            const byte = dataIn[n + i];
+            msbs |= ((byte & 0x80) >> 7) << i; // Extract MSB and position it
+            dataBytesForGroup.push(byte & 0x7F); // Keep lower 7 bits
         }
-    } catch (error) {
-        console.error('Error parsing JSON response:', error, jsonStr);
+        result.push(msbs);
+        result.push(...dataBytesForGroup);
+        n += count;
     }
+    return new Uint8Array(result);
 }
 
-// Send SYSEX message to Deluge
-function sendSysex(jsonPayload, callback) {
-    if (!delugeOutput) {
-        showNotification('✗ Not connected to Deluge', true);
-        return;
+/**
+ * Unpacks 7-bit SYSEX data back to 8-bit
+ * Reverses the packing process
+ */
+function unpack7bitTo8bit(dataIn) {
+    const result = [];
+    let inOffset = 0;
+    while (inOffset < dataIn.length) {
+        if (dataIn.length < inOffset + 1) break;
+        const msbs = dataIn[inOffset++];
+        for (let i = 0; i < 7; i++) {
+            if (dataIn.length < inOffset + 1) break;
+            let byte = dataIn[inOffset++];
+            if ((msbs >> i) & 1) {
+                byte |= 0x80; // Restore MSB if it was set
+            }
+            result.push(byte);
+        }
     }
+    return new Uint8Array(result);
+}
 
-    messageId = (messageId + 1) % 256;
+// ============================================================================
+// SESSION MANAGEMENT
+// ============================================================================
 
-    // Build SYSEX message
-    const sysexMsg = [
+/**
+ * Build message ID from session
+ */
+function buildMsgId(session) {
+    const range = session.midMax - session.midMin + 1;
+    return session.midMin + ((session.counter - 1) % range);
+}
+
+/**
+ * Increment session counter
+ */
+function incrementCounter(session) {
+    const range = session.midMax - session.midMin + 1;
+    session.counter = (session.counter % range) + 1;
+}
+
+/**
+ * Opens a session with the Deluge
+ * Returns: {sid, midMin, midMax, counter}
+ */
+async function openSession(tag = 'DelugeSynthEditor') {
+    if (currentSession) {
+        return currentSession;
+    }
+    
+    console.log('Opening smSysex session with tag:', tag);
+    const sessionCmd = { session: { tag } };
+    const jsonData = JSON.stringify(sessionCmd);
+    const jsonBytes = new TextEncoder().encode(jsonData);
+    
+    const message = new Uint8Array([
         SYSEX_START,
-        ...DELUGE_SYSEX_ID,
+        ...STD_MANUFACTURER_ID,
         SYSEX_CMD_JSON,
-        messageId
-    ];
-
-    // Add JSON payload as ASCII bytes
-    for (let i = 0; i < jsonPayload.length; i++) {
-        sysexMsg.push(jsonPayload.charCodeAt(i));
-    }
-
-    sysexMsg.push(SYSEX_END);
-
-    // Log outgoing message
-    console.log('Sending SYSEX (msgId=' + messageId + '):',
-                Array.from(sysexMsg).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
-    console.log('JSON payload:', jsonPayload);
-
-    // Register callback
-    if (callback) {
-        pendingResponses.set(messageId, callback);
-        console.log('Registered callback for msgId', messageId);
-
-        // Timeout after 5 seconds
-        setTimeout(() => {
-            if (pendingResponses.has(messageId)) {
-                console.error('Timeout waiting for response to msgId', messageId);
-                pendingResponses.delete(messageId);
-                callback({ error: 'Timeout - no response from Deluge' });
-            }
-        }, 5000);
-    }
-
-    // Send to Deluge
-    try {
-        delugeOutput.send(sysexMsg);
-        console.log('✓ SYSEX sent successfully');
-    } catch (error) {
-        console.error('Error sending SYSEX:', error);
-        if (callback) {
-            pendingResponses.delete(messageId);
-            callback({ error: 'Failed to send: ' + error.message });
-        }
-    }
-}
-
-// Test connection with ping (tries session first)
-async function sendPing() {
-    console.log('Establishing session with Deluge...');
-
-    // Try to establish a session first
-    try {
-        await new Promise((resolve, reject) => {
-            sendSysex('{"session":{"tag":"deluge-editor"}}', (response) => {
-                console.log('Session response:', response);
-                if (response && response['^session']) {
-                    sessionId = response['^session'].sid || 0;
-                    console.log('✓ Session established, ID:', sessionId);
-                }
-                // Resolve even if session fails - it might not be required
-                resolve();
-            });
-        });
-    } catch (sessionError) {
-        console.log('Session establishment failed, continuing anyway:', sessionError);
-    }
-
-    // Now try ping
+        0,  // msgId = 0 for session request
+        ...jsonBytes,
+        SYSEX_END
+    ]);
+    
     return new Promise((resolve, reject) => {
-        console.log('Sending ping to Deluge...');
-        sendSysex('{"ping":{}}', (response) => {
-            console.log('Ping response:', response);
-
-            if (response && response.error) {
-                console.error('Ping error:', response.error);
-                reject(new Error(response.error));
-            } else if (response && response['^ping']) {
-                console.log('✓ Ping successful!');
-                resolve();
+        const timeoutId = setTimeout(() => {
+            cleanup();
+            console.warn('Session negotiation timed out after 15 seconds - will use fallback mode');
+            reject(new Error('Session timeout'));
+        }, 15000);
+        
+        const cleanup = () => {
+            pendingResponses.delete(0);
+        };
+        
+        const responseHandler = (response) => {
+            clearTimeout(timeoutId);
+            cleanup();
+            
+            console.log('Session response received:', response);
+            
+            if (response.json && response.json['^session']) {
+                const info = response.json['^session'];
+                console.log('Session info:', info);
+                currentSession = {
+                    sid: info.sid,
+                    midMin: info.midMin,
+                    midMax: info.midMax,
+                    counter: 1
+                };
+                console.log('✓ Session established successfully:', currentSession);
+                resolve(currentSession);
             } else {
-                console.error('Unexpected ping response:', response);
-                reject(new Error('Unexpected response from Deluge'));
+                console.error('Invalid session response format:', response);
+                reject(new Error('Invalid session response'));
             }
-        });
+        };
+        
+        pendingResponses.set(0, responseHandler);
+        
+        if (delugeOutput) {
+            console.log('Sending session request:', Array.from(message.slice(0, 30)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+            console.log('JSON:', jsonData);
+            delugeOutput.send(message);
+        } else {
+            cleanup();
+            reject(new Error('MIDI output not available'));
+        }
     });
 }
 
-// Get directory listing from Deluge
-function getDirectory(path, callback) {
-    const json = `{"dir":{"path":"${path}"}}`;
-    sendSysex(json, callback);
+/**
+ * Ensure we have a valid session (or create a fallback)
+ */
+async function ensureSession() {
+    if (currentSession && messagesSentInSession < MAX_MESSAGES_PER_SESSION) {
+        return currentSession;
+    }
+    
+    // Try to create new session
+    console.log('Creating new session...');
+    currentSession = null;
+    messagesSentInSession = 0;
+    
+    try {
+        return await openSession();
+    } catch (error) {
+        console.warn('Session negotiation failed, using fallback mode:', error);
+        // Fallback: Create a simple session without negotiation
+        // This works with older firmware or when session protocol is not available
+        currentSession = {
+            sid: 0,
+            midMin: 0x41,  // Use default message ID range
+            midMax: 0x4F,
+            counter: 1
+        };
+        return currentSession;
+    }
 }
 
-// Open file on Deluge for writing
-function openFileForWrite(path, callback) {
-    const json = `{"open":{"path":"${path}","write":1}}`;
-    sendSysex(json, callback);
+/**
+ * Reset the current session
+ */
+function resetSession() {
+    console.log('Resetting session');
+    currentSession = null;
+    messagesSentInSession = 0;
 }
 
-// Close file on Deluge
-function closeFile(fileId, callback) {
-    const json = `{"close":{"fid":${fileId}}}`;
-    sendSysex(json, callback);
-}
+// ============================================================================
+// MIDI MESSAGE HANDLING
+// ============================================================================
 
-// Write data block to file
-function writeBlock(fileId, data, callback) {
-    // Data needs to be 7-bit encoded for SYSEX
-    const encoded = encode7bit(data);
-    const json = `{"write":{"fid":${fileId},"size":${data.length}}}`;
+// Handle incoming MIDI messages
+function handleMidiMessage(event) {
+    const data = new Uint8Array(event.data);
 
-    // Create message with separator and encoded data
-    const fullMsg = json.substring(0, json.length - 1) + '\0' + encoded + '}';
-    sendSysex(fullMsg, callback);
-}
+    // Log all SYSEX for debugging
+    console.log('MIDI message received:', data.length, 'bytes');
 
-// Read file from Deluge
-function openFileForRead(path, callback) {
-    const json = `{"open":{"path":"${path}","write":0}}`;
-    sendSysex(json, callback);
-}
+    // Check if it's a SYSEX message
+    if (data[0] !== SYSEX_START) {
+        return;
+    }
+    
+    console.log('SYSEX message:', Array.from(data.slice(0, 20)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
 
-function readBlock(fileId, addr, size, callback) {
-    const json = `{"read":{"fid":${fileId},"addr":${addr},"size":${size}}}`;
-    sendSysex(json, callback);
-}
-
-// 7-bit encoding for SYSEX data
-function encode7bit(str) {
-    const bytes = new TextEncoder().encode(str);
-    let result = '';
-
-    for (let i = 0; i < bytes.length; i += 7) {
-        let hiBits = 0;
-        const chunk = [];
-
-        for (let j = 0; j < 7 && i + j < bytes.length; j++) {
-            const byte = bytes[i + j];
-            chunk.push(byte & 0x7F);
-            if (byte & 0x80) {
-                hiBits |= (1 << j);
-            }
-        }
-
-        result += String.fromCharCode(hiBits);
-        for (const b of chunk) {
-            result += String.fromCharCode(b);
+    // Determine manufacturer ID type (standard or dev)
+    const isDevId = data[1] === 0x7D;
+    const manufacturerIdSize = isDevId ? 1 : 4;
+    const headerSize = 1 + manufacturerIdSize + 1 + 1; // F0 + mfr + cmd + msgId
+    
+    // Check for Deluge manufacturer ID
+    if (!isDevId) {
+        if (data[1] !== STD_MANUFACTURER_ID[0] ||
+            data[2] !== STD_MANUFACTURER_ID[1] ||
+            data[3] !== STD_MANUFACTURER_ID[2] ||
+            data[4] !== STD_MANUFACTURER_ID[3]) {
+            return;
         }
     }
 
-    return result;
-}
-
-// Decode 7-bit encoded data
-function decode7bit(encoded) {
-    const bytes = [];
-
-    for (let i = 0; i < encoded.length;) {
-        const hiBits = encoded.charCodeAt(i++);
-        const chunkSize = Math.min(7, encoded.length - i);
-
-        for (let j = 0; j < chunkSize; j++) {
-            let byte = encoded.charCodeAt(i++);
-            if (hiBits & (1 << j)) {
-                byte |= 0x80;
-            }
-            bytes.push(byte);
-        }
+    const commandPos = isDevId ? 2 : 5;
+    const msgIdPos = isDevId ? 3 : 6;
+    
+    // Check if it's a JSON reply
+    if (data[commandPos] !== SYSEX_CMD_JSON_REPLY) {
+        return;
     }
 
-    return new TextDecoder().decode(new Uint8Array(bytes));
+    const msgId = data[msgIdPos];
+    const sysexEnd = data.lastIndexOf(SYSEX_END);
+    
+    if (sysexEnd === -1) {
+        console.error('Invalid SYSEX: missing terminator');
+        return;
+    }
+    
+    // Find 0x00 separator between JSON and binary data
+    let separatorIdx = -1;
+    for (let i = headerSize; i < sysexEnd; i++) {
+        if (data[i] === 0x00) {
+            separatorIdx = i;
+            break;
+        }
+    }
+    
+    // Extract JSON part
+    const jsonBytes = data.slice(headerSize, separatorIdx !== -1 ? separatorIdx : sysexEnd);
+    const jsonText = new TextDecoder().decode(jsonBytes);
+    
+    console.log('Received JSON (msgId=' + msgId.toString(16) + '):', jsonText);
+    
+    try {
+        const json = JSON.parse(jsonText);
+        
+        // Extract binary data if present
+        let binaryData = null;
+        if (separatorIdx !== -1) {
+            const packedBinary = data.slice(separatorIdx + 1, sysexEnd);
+            binaryData = unpack7bitTo8bit(packedBinary);
+            console.log('Received binary data:', binaryData.length, 'bytes');
+        }
+        
+        const response = { json, binaryData };
+        
+        // Call pending callback if exists
+        if (pendingResponses.has(msgId)) {
+            console.log('Calling callback for msgId', msgId.toString(16));
+            const callback = pendingResponses.get(msgId);
+            pendingResponses.delete(msgId);
+            callback(response);
+        }
+    } catch (error) {
+        console.error('Error parsing SYSEX response:', error, jsonText);
+    }
+}
+
+// ============================================================================
+// SEND JSON COMMANDS
+// ============================================================================
+
+/**
+ * Send JSON command with optional binary payload
+ * Automatically manages session and message IDs
+ */
+async function sendJson(cmd, binaryPayload = null) {
+    if (!delugeOutput) {
+        throw new Error('Not connected to Deluge');
+    }
+    
+    const session = await ensureSession();
+    const msgId = buildMsgId(session);
+    incrementCounter(session);
+    messagesSentInSession++;
+    
+    console.log('sendJson:', cmd, 'msgId=' + msgId.toString(16));
+    
+    const jsonData = JSON.stringify(cmd);
+    const jsonBytes = new TextEncoder().encode(jsonData);
+    
+    let message;
+    if (cmd.write && binaryPayload) {
+        // Write command with binary data
+        const packedBinary = pack8bitTo7bit(binaryPayload);
+        message = new Uint8Array([
+            SYSEX_START,
+            ...STD_MANUFACTURER_ID,
+            SYSEX_CMD_JSON,
+            msgId,
+            ...jsonBytes,
+            0x00,  // Separator between JSON and binary
+            ...packedBinary,
+            SYSEX_END
+        ]);
+        console.log('Sending write with', binaryPayload.length, 'bytes binary data');
+    } else {
+        // JSON only
+        message = new Uint8Array([
+            SYSEX_START,
+            ...STD_MANUFACTURER_ID,
+            SYSEX_CMD_JSON,
+            msgId,
+            ...jsonBytes,
+            SYSEX_END
+        ]);
+    }
+    
+    return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+            pendingResponses.delete(msgId);
+            reject(new Error('Command timeout (10s). Check Deluge connection.'));
+        }, 10000);
+        
+        pendingResponses.set(msgId, (response) => {
+            clearTimeout(timeoutId);
+            resolve(response);
+        });
+        
+        delugeOutput.send(message);
+    });
+}
+
+/**
+ * Test connection with ping
+ */
+async function ping() {
+    const session = await ensureSession();
+    const response = await sendJson({ ping: {} });
+    if (response.json['^ping']) {
+        console.log('✓ Ping successful');
+        return true;
+    }
+    throw new Error('Invalid ping response');
+}
+
+/**
+ * Send popup notification to Deluge (shows "HELLO SYSEX" message)
+ */
+async function sendPopupNotification() {
+    if (!delugeOutput) {
+        return;
+    }
+    
+    try {
+        // Send Popup command (0x01) - shows hardcoded "HELLO SYSEX" on Deluge display
+        const message = new Uint8Array([
+            SYSEX_START,
+            ...STD_MANUFACTURER_ID,
+            0x01,  // Popup command
+            SYSEX_END
+        ]);
+        
+        delugeOutput.send(message);
+        console.log('Sent popup notification to Deluge');
+    } catch (error) {
+        console.error('Failed to send popup notification:', error);
+    }
+}
+
+// ============================================================================
+// FILE OPERATIONS
+// ============================================================================
+
+/**
+ * Write a complete file to Deluge with proper chunking
+ */
+async function writeFile(path, data) {
+    // Convert string to bytes if needed
+    const bytes = typeof data === 'string' 
+        ? new TextEncoder().encode(data) 
+        : data;
+    
+    console.log('Writing file:', path, '(', bytes.length, 'bytes)');
+    
+    // 1. OPEN
+    const openResp = await sendJson({ open: { path, write: 1 } });
+    if (!openResp.json['^open']) {
+        throw new Error('Failed to open file for writing');
+    }
+    const fid = openResp.json['^open'].fid;
+    console.log('File opened with fid:', fid);
+    
+    try {
+        // 2. WRITE in 128-byte chunks
+        const chunkSize = 128;
+        let offset = 0;
+        
+        while (offset < bytes.length) {
+            const size = Math.min(chunkSize, bytes.length - offset);
+            const chunk = bytes.slice(offset, offset + size);
+            
+            console.log('Writing chunk:', offset, '-', offset + size);
+            
+            const writeResp = await sendJson(
+                { write: { fid, addr: offset, size: chunk.length } },
+                chunk  // Binary payload
+            );
+            
+            if (writeResp.json['^write'] && writeResp.json['^write'].err !== 0) {
+                throw new Error('Write error: ' + writeResp.json['^write'].err);
+            }
+            
+            offset += size;
+        }
+        
+        // 3. CLOSE
+        console.log('Closing file...');
+        await sendJson({ close: { fid } });
+        console.log('File written successfully');
+        
+        return { success: true };
+    } catch (error) {
+        // Try to close on error
+        console.error('Error during write, attempting to close file:', error);
+        try {
+            await sendJson({ close: { fid } });
+        } catch (e) {
+            console.error('Failed to close file after error:', e);
+        }
+        throw error;
+    }
+}
+
+/**
+ * Read a complete file from Deluge with proper chunking
+ */
+async function readFile(path) {
+    console.log('Reading file:', path);
+    
+    // 1. OPEN
+    const openResp = await sendJson({ open: { path, write: 0 } });
+    if (!openResp.json['^open']) {
+        throw new Error('Failed to open file for reading');
+    }
+    const { fid, size } = openResp.json['^open'];
+    console.log('File opened with fid:', fid, 'size:', size);
+    
+    try {
+        // 2. READ in 1024-byte chunks
+        const result = new Uint8Array(size);
+        const chunkSize = 1024;
+        let offset = 0;
+        
+        while (offset < size) {
+            const readSize = Math.min(chunkSize, size - offset);
+            
+            console.log('Reading chunk:', offset, '-', offset + readSize);
+            
+            const readResp = await sendJson({ 
+                read: { fid, addr: offset, size: readSize } 
+            });
+            
+            if (!readResp.binaryData) {
+                throw new Error('No data received in read response');
+            }
+            
+            const chunk = readResp.binaryData;
+            result.set(chunk, offset);
+            offset += chunk.length;
+        }
+        
+        // 3. CLOSE
+        console.log('Closing file...');
+        await sendJson({ close: { fid } });
+        console.log('File read successfully');
+        
+        return result;
+    } catch (error) {
+        console.error('Error during read, attempting to close file:', error);
+        try {
+            await sendJson({ close: { fid } });
+        } catch (e) {
+            console.error('Failed to close file after error:', e);
+        }
+        throw error;
+    }
+}
+
+/**
+ * List directory contents (with caching and pagination)
+ * Note: Deluge returns max 25 entries per request, so we need to paginate
+ */
+async function listDirectory(path, forceRefresh = false) {
+    // If force refresh, clear cache for this path first
+    if (forceRefresh) {
+        console.log('Force refresh - clearing cache for:', path);
+        directoryCache.delete(path);
+        cacheTimestamp.delete(path);
+    }
+    
+    // Check cache first
+    if (directoryCache.has(path)) {
+        const cacheTime = cacheTimestamp.get(path);
+        const now = Date.now();
+        
+        if (now - cacheTime < CACHE_DURATION_MS) {
+            console.log('Using cached directory listing for:', path, '(' + directoryCache.get(path).length + ' entries)');
+            return directoryCache.get(path);
+        } else {
+            console.log('Cache expired for:', path);
+        }
+    }
+    
+    // Fetch with pagination (Deluge has 25 entry limit per request)
+    console.log('Fetching directory listing with pagination:', path);
+    const allEntries = [];
+    let offset = 0;
+    const chunkSize = 64; // Request up to 64, but Deluge returns max 25
+    let hasMore = true;
+    
+    while (hasMore) {
+        const resp = await sendJson({ dir: { path, offset, lines: chunkSize } });
+        
+        if (!resp.json['^dir']) {
+            console.error('Invalid directory response - no ^dir key. Response:', resp.json);
+            throw new Error('Invalid directory response');
+        }
+        
+        const entries = resp.json['^dir'].list || [];
+        
+        if (entries.length > 0) {
+            allEntries.push(...entries);
+            offset += entries.length;
+            hasMore = entries.length > 0;
+        } else {
+            hasMore = false;
+        }
+        
+        // Check for error
+        if (resp.json['^dir'].err) {
+            console.error('Directory listing error code:', resp.json['^dir'].err);
+            break;
+        }
+        
+        // Safety check
+        if (offset > 10000) {
+            console.warn('Directory has over 10000 entries, stopping');
+            break;
+        }
+    }
+    
+    console.log('✓ Loaded', allEntries.length, 'files from', path);
+    
+    // Cache the result
+    directoryCache.set(path, allEntries);
+    cacheTimestamp.set(path, Date.now());
+    
+    return allEntries;
+}
+
+/**
+ * Clear directory cache (call after writing files)
+ */
+function clearDirectoryCache(path = null) {
+    if (path) {
+        directoryCache.delete(path);
+        cacheTimestamp.delete(path);
+        console.log('Cleared cache for:', path);
+    } else {
+        directoryCache.clear();
+        cacheTimestamp.clear();
+        console.log('Cleared all directory cache');
+    }
+}
+
+/**
+ * Check if a file exists on Deluge
+ */
+async function fileExists(filepath) {
+    try {
+        const dirPath = filepath.substring(0, filepath.lastIndexOf('/') + 1);
+        const filename = filepath.substring(filepath.lastIndexOf('/') + 1);
+        
+        const entries = await listDirectory(dirPath);
+        
+        // Check if any entry matches the filename (case-insensitive)
+        return entries.some(entry => 
+            entry.name.toUpperCase() === filename.toUpperCase()
+        );
+    } catch (error) {
+        console.error('Error checking file existence:', error);
+        return false;
+    }
 }
 
 // ============================================================================
@@ -429,47 +793,70 @@ async function sendToDeluge() {
 
     const xml = generateXML();
     const presetName = document.getElementById('presetName').value || 'My Synth';
-    const filename = presetName.replace(/[^a-z0-9]/gi, '_') + '.XML';
-    const filepath = '/SYNTHS/' + filename;
+    // Keep spaces, only remove characters that are invalid in filenames
+    const filename = presetName.replace(/[\/\\:*?"<>|]/g, '_').toUpperCase() + '.XML';
+    
+    // Determine target filepath
+    let filepath;
+    let dirPath = '/SYNTHS/';
+    
+    if (originalLoadedFilepath) {
+        // Extract original directory path
+        const originalDir = originalLoadedFilepath.substring(0, originalLoadedFilepath.lastIndexOf('/') + 1);
+        const originalFilename = originalLoadedFilepath.substring(originalLoadedFilepath.lastIndexOf('/') + 1);
+        
+        // Check if name has changed
+        const nameChanged = originalFilename.toUpperCase() !== filename;
+        
+        if (nameChanged) {
+            // Name changed - save to root /SYNTHS/ as a new file
+            filepath = '/SYNTHS/' + filename;
+        } else {
+            // Name unchanged - save back to original location
+            filepath = originalLoadedFilepath;
+            dirPath = originalDir;
+        }
+    } else {
+        // No original file - save to root /SYNTHS/
+        filepath = '/SYNTHS/' + filename;
+    }
 
     try {
-        showNotification('📤 Sending to Deluge...');
-
-        // Open file for writing
-        const openResp = await new Promise((resolve) => {
-            openFileForWrite(filepath, resolve);
-        });
-
-        if (openResp['^open'] && openResp['^open'].fid) {
-            const fileId = openResp['^open'].fid;
-
-            // Write XML data in chunks (max 1024 bytes per chunk)
-            const chunkSize = 1024;
-            let offset = 0;
-
-            while (offset < xml.length) {
-                const chunk = xml.substring(offset, offset + chunkSize);
-
-                await new Promise((resolve) => {
-                    writeBlock(fileId, chunk, resolve);
-                });
-
-                offset += chunkSize;
+        // Always check if file exists and ask for confirmation
+        showNotification('📤 Checking file...');
+        const exists = await fileExists(filepath);
+        
+        if (exists) {
+            // File exists - ask for confirmation
+            const overwrite = confirm(
+                `"${filename}" already exists at ${dirPath}\n\n` +
+                `Click OK to overwrite.\n` +
+                `Click Cancel to abort.\n\n` +
+                `Tip: Change the preset name to save as a new file.`
+            );
+            
+            if (!overwrite) {
+                showNotification('✗ Save cancelled', true);
+                return;
             }
-
-            // Close file
-            await new Promise((resolve) => {
-                closeFile(fileId, resolve);
-            });
-
-            showNotification(`✓ Sent to Deluge: ${filepath}`);
-        } else {
-            showNotification('✗ Failed to open file on Deluge', true);
         }
-
+        
+        showNotification('📤 Sending to Deluge...');
+        await writeFile(filepath, xml);
+        
+        // Send popup notification to Deluge (shows "HELLO SYSEX")
+        sendPopupNotification();
+        
+        // Update the original filepath tracker
+        originalLoadedFilepath = filepath;
+        
+        // Update save path indicator for next save
+        updateSavePathIndicator();
+        
+        showNotification(`✓ Saved to ${filepath} - Reload patch on Deluge to hear changes`);
     } catch (error) {
         console.error('Error sending to Deluge:', error);
-        showNotification('✗ Error: ' + error.message, true);
+        showNotification('✗ Failed: ' + error.message, true);
     }
 }
 
@@ -491,18 +878,56 @@ function closeBrowser() {
     document.getElementById('browserModal').classList.remove('show');
 }
 
-function loadDirectory(path) {
+async function loadDirectory(path, forceRefresh = false) {
     currentBrowserPath = path;
     document.getElementById('currentPath').textContent = path;
-    document.getElementById('fileList').innerHTML = '<div class="loading">Loading...</div>';
+    document.getElementById('fileList').innerHTML = '<div class="loading">Loading, can take a while on first go...</div>';
 
-    getDirectory(path, (response) => {
-        if (response['^dir'] && response['^dir'].entries) {
-            renderFileList(response['^dir'].entries, path);
-        } else {
-            document.getElementById('fileList').innerHTML =
-                '<div class="loading">Error loading directory</div>';
-        }
+    try {
+        const entries = await listDirectory(path, forceRefresh);
+        renderFileList(entries, path);
+    } catch (error) {
+        console.error('Error loading directory:', error);
+        document.getElementById('fileList').innerHTML =
+            '<div class="loading">Error: ' + error.message + '</div>';
+    }
+}
+
+/**
+ * Refresh the current directory (bypass cache)
+ */
+function refreshDirectory() {
+    console.log('🔄 Refresh clicked for:', currentBrowserPath);
+    showNotification('🔄 Refreshing directory...');
+    loadDirectory(currentBrowserPath, true);
+}
+
+/**
+ * Filter out system/hidden files (Mac & Windows)
+ */
+function filterSystemFiles(entries) {
+    return entries.filter(entry => {
+        const name = entry.name;
+        
+        // Filter out Mac system files
+        if (name.startsWith('._')) return false;  // Resource fork files
+        if (name === '.DS_Store') return false;   // Folder metadata
+        if (name === '.Spotlight-V100') return false;
+        if (name === '.Trashes') return false;
+        if (name === '.fseventsd') return false;
+        if (name === '.TemporaryItems') return false;
+        if (name === '.VolumeIcon.icns') return false;
+        
+        // Filter out Windows system files
+        if (name === 'Thumbs.db') return false;   // Thumbnail cache
+        if (name === 'desktop.ini') return false; // Folder settings
+        if (name === 'System Volume Information') return false;
+        if (name === '$RECYCLE.BIN') return false;
+        
+        // Filter out any other hidden files (starting with .)
+        if (name.startsWith('.')) return false;
+        
+        return true;
     });
 }
 
@@ -510,50 +935,82 @@ function renderFileList(entries, path) {
     const fileList = document.getElementById('fileList');
     fileList.innerHTML = '';
 
-    // Add parent directory link if not at root
-    if (path !== '/') {
+    // Only show parent directory if we're inside /SYNTHS/ subfolders (locked to SYNTHS)
+    if (path !== '/SYNTHS/' && path.startsWith('/SYNTHS/')) {
         const parentItem = document.createElement('div');
         parentItem.className = 'file-item folder';
         parentItem.innerHTML = '📁 .. (Parent Directory)';
         parentItem.onclick = () => {
             const parentPath = path.substring(0, path.lastIndexOf('/', path.length - 2) + 1);
-            loadDirectory(parentPath || '/');
+            // Ensure we don't go above /SYNTHS/
+            if (parentPath.startsWith('/SYNTHS/') || parentPath === '/SYNTHS/') {
+                loadDirectory(parentPath);
+            }
         };
         fileList.appendChild(parentItem);
     }
 
+    // Filter out system/hidden files
+    entries = filterSystemFiles(entries);
+
     // Sort: directories first, then files
     entries.sort((a, b) => {
-        if (a.dir && !b.dir) return -1;
-        if (!a.dir && b.dir) return 1;
+        // Check attr field: bit 4 (0x10) = directory
+        const aIsDir = (a.attr & 0x10) !== 0;
+        const bIsDir = (b.attr & 0x10) !== 0;
+        if (aIsDir && !bIsDir) return -1;
+        if (!aIsDir && bIsDir) return 1;
         return a.name.localeCompare(b.name);
-    });
-
-    entries.forEach(entry => {
-        const item = document.createElement('div');
-        item.className = 'file-item' + (entry.dir ? ' folder' : '');
-
-        const icon = entry.dir ? '📁' : '📄';
-        const name = entry.name;
-
-        item.innerHTML = `<span>${icon} ${name}</span>`;
-
-        if (entry.dir) {
-            item.onclick = () => {
-                loadDirectory(path + name + '/');
-            };
-        } else if (name.toUpperCase().endsWith('.XML')) {
-            item.onclick = () => {
-                loadFileFromDeluge(path + name);
-            };
-        }
-
-        fileList.appendChild(item);
     });
 
     if (entries.length === 0) {
         fileList.innerHTML = '<div class="loading">Empty directory</div>';
+        return;
     }
+
+    // Render in batches for better performance
+    const BATCH_SIZE = 50;
+    let currentIndex = 0;
+
+    function renderBatch() {
+        const endIndex = Math.min(currentIndex + BATCH_SIZE, entries.length);
+        const fragment = document.createDocumentFragment();
+
+        for (let i = currentIndex; i < endIndex; i++) {
+            const entry = entries[i];
+            const isDir = (entry.attr & 0x10) !== 0;
+            const item = document.createElement('div');
+            item.className = 'file-item' + (isDir ? ' folder' : '');
+
+            const icon = isDir ? '📁' : '📄';
+            const name = entry.name;
+
+            item.innerHTML = `<span>${icon} ${name}</span>`;
+
+            if (isDir) {
+                item.onclick = () => {
+                    loadDirectory(path + name + '/');
+                };
+            } else if (name.toUpperCase().endsWith('.XML')) {
+                item.onclick = () => {
+                    loadFileFromDeluge(path + name);
+                };
+            }
+
+            fragment.appendChild(item);
+        }
+
+        fileList.appendChild(fragment);
+        currentIndex = endIndex;
+
+        // Render next batch if there are more items
+        if (currentIndex < entries.length) {
+            requestAnimationFrame(renderBatch);
+        }
+    }
+
+    // Start rendering
+    renderBatch();
 }
 
 async function loadFileFromDeluge(filepath) {
@@ -561,57 +1018,189 @@ async function loadFileFromDeluge(filepath) {
         showNotification('📥 Loading from Deluge...');
         closeBrowser();
 
-        // Open file for reading
-        const openResp = await new Promise((resolve) => {
-            openFileForRead(filepath, resolve);
-        });
+        const data = await readFile(filepath);
+        const xmlContent = new TextDecoder().decode(data);
+        
+        // Parse and load the XML
+        parseXML(xmlContent);
+        updateUIFromState();
 
-        if (openResp['^open'] && openResp['^open'].fid) {
-            const fileId = openResp['^open'].fid;
-            const fileSize = openResp['^open'].size;
+        const filename = filepath.substring(filepath.lastIndexOf('/') + 1);
+        // Just remove the .XML extension, keep the name as-is (including spaces)
+        const presetName = filename.replace(/\.XML$/i, '');
+        document.getElementById('presetName').value = presetName;
+        
+        // Store original FULL filepath for preserving directory location
+        originalLoadedFilepath = filepath;
+        
+        // Update save path indicator
+        updateSavePathIndicator();
 
-            let xmlContent = '';
-            let offset = 0;
-            const chunkSize = 1024;
-
-            // Read file in chunks
-            while (offset < fileSize) {
-                const readSize = Math.min(chunkSize, fileSize - offset);
-
-                const readResp = await new Promise((resolve) => {
-                    readBlock(fileId, offset, readSize, resolve);
-                });
-
-                if (readResp['^read'] && readResp['^read'].data) {
-                    // Decode the 7-bit encoded data
-                    const decodedChunk = decode7bit(readResp['^read'].data);
-                    xmlContent += decodedChunk;
-                }
-
-                offset += readSize;
-            }
-
-            // Close file
-            await new Promise((resolve) => {
-                closeFile(fileId, resolve);
-            });
-
-            // Parse and load the XML
-            parseXML(xmlContent);
-
-            const filename = filepath.substring(filepath.lastIndexOf('/') + 1);
-            document.getElementById('presetName').value = filename.replace('.XML', '').replace(/_/g, ' ');
-
-            showNotification(`✓ Loaded from Deluge: ${filename}`);
-
-        } else {
-            showNotification('✗ Failed to open file on Deluge', true);
-        }
-
+        showNotification(`✓ Loaded: ${filename}`);
     } catch (error) {
         console.error('Error loading from Deluge:', error);
-        showNotification('✗ Error: ' + error.message, true);
+        showNotification('✗ Failed: ' + error.message, true);
     }
+}
+
+// ============================================================================
+// SAMPLE BROWSER
+// ============================================================================
+
+/**
+ * Open sample browser for a specific oscillator
+ */
+function browseSampleForOsc(oscNum) {
+    if (!delugeOutput) {
+        showNotification('✗ Not connected to Deluge', true);
+        return;
+    }
+    
+    currentSampleOscTarget = oscNum;
+    document.getElementById('sampleBrowserModal').classList.add('show');
+    loadSampleDirectory('/SAMPLES/');
+}
+
+/**
+ * Close sample browser
+ */
+function closeSampleBrowser() {
+    document.getElementById('sampleBrowserModal').classList.remove('show');
+    currentSampleOscTarget = null;
+}
+
+/**
+ * Load a directory in the sample browser
+ */
+async function loadSampleDirectory(path, forceRefresh = false) {
+    currentSampleBrowserPath = path;
+    document.getElementById('sampleCurrentPath').textContent = path;
+    document.getElementById('sampleFileList').innerHTML = '<div class="loading">Loading, can take a while on first go...</div>';
+
+    try {
+        const entries = await listDirectory(path, forceRefresh);
+        renderSampleFileList(entries, path);
+    } catch (error) {
+        console.error('Error loading sample directory:', error);
+        document.getElementById('sampleFileList').innerHTML =
+            '<div class="loading">Error: ' + error.message + '</div>';
+    }
+}
+
+/**
+ * Refresh sample directory
+ */
+function refreshSampleDirectory() {
+    console.log('🔄 Sample refresh clicked for:', currentSampleBrowserPath);
+    showNotification('🔄 Refreshing samples...');
+    loadSampleDirectory(currentSampleBrowserPath, true);
+}
+
+/**
+ * Render sample file list
+ */
+function renderSampleFileList(entries, path) {
+    const fileList = document.getElementById('sampleFileList');
+    fileList.innerHTML = '';
+
+    // Show parent directory if not at SAMPLES root
+    if (path !== '/SAMPLES/' && path.startsWith('/SAMPLES/')) {
+        const parentItem = document.createElement('div');
+        parentItem.className = 'file-item folder';
+        parentItem.innerHTML = '📁 .. (Parent Directory)';
+        parentItem.onclick = () => {
+            const parentPath = path.substring(0, path.lastIndexOf('/', path.length - 2) + 1);
+            if (parentPath.startsWith('/SAMPLES/') || parentPath === '/SAMPLES/') {
+                loadSampleDirectory(parentPath);
+            }
+        };
+        fileList.appendChild(parentItem);
+    }
+
+    // Filter out system files
+    entries = filterSystemFiles(entries);
+
+    // Sort: directories first, then files
+    entries.sort((a, b) => {
+        const aIsDir = (a.attr & 0x10) !== 0;
+        const bIsDir = (b.attr & 0x10) !== 0;
+        if (aIsDir && !bIsDir) return -1;
+        if (!aIsDir && bIsDir) return 1;
+        return a.name.localeCompare(b.name);
+    });
+
+    if (entries.length === 0) {
+        fileList.innerHTML = '<div class="loading">Empty directory</div>';
+        return;
+    }
+
+    // Render in batches for performance
+    const BATCH_SIZE = 50;
+    let currentIndex = 0;
+
+    function renderBatch() {
+        const endIndex = Math.min(currentIndex + BATCH_SIZE, entries.length);
+        const fragment = document.createDocumentFragment();
+
+        for (let i = currentIndex; i < endIndex; i++) {
+            const entry = entries[i];
+            const isDir = (entry.attr & 0x10) !== 0;
+            const item = document.createElement('div');
+            item.className = 'file-item' + (isDir ? ' folder' : '');
+
+            const icon = isDir ? '📁' : '🎵';
+            const name = entry.name;
+
+            item.innerHTML = `<span>${icon} ${name}</span>`;
+
+            if (isDir) {
+                item.onclick = () => {
+                    loadSampleDirectory(path + name + '/');
+                };
+            } else {
+                // Check if it's an audio file
+                const audioExtensions = ['.WAV', '.AIFF', '.AIF'];
+                if (audioExtensions.some(ext => name.toUpperCase().endsWith(ext))) {
+                    item.onclick = () => {
+                        selectSampleFile(path + name);
+                    };
+                }
+            }
+
+            fragment.appendChild(item);
+        }
+
+        fileList.appendChild(fragment);
+        currentIndex = endIndex;
+
+        if (currentIndex < entries.length) {
+            requestAnimationFrame(renderBatch);
+        }
+    }
+
+    renderBatch();
+}
+
+/**
+ * Select a sample file and populate the oscillator input
+ */
+function selectSampleFile(filepath) {
+    if (!currentSampleOscTarget) {
+        return;
+    }
+    
+    // Remove leading slash to make it a relative path
+    const relativePath = filepath.startsWith('/') ? filepath.substring(1) : filepath;
+    
+    const inputId = `osc${currentSampleOscTarget}File`;
+    document.getElementById(inputId).value = relativePath;
+    
+    // Trigger change event to update the parameter
+    const event = new Event('input', { bubbles: true });
+    document.getElementById(inputId).dispatchEvent(event);
+    
+    closeSampleBrowser();
+    showNotification(`✓ Sample selected: ${relativePath}`);
 }
 
 // ============================================================================
@@ -652,12 +1241,14 @@ const defaultParams = {
     osc1Transpose: '0',
     osc1Cents: '0',
     osc1RetrigPhase: '-1',
+    osc1IsTracking: '1',  // Tracks keyboard pitch (1=yes, 0=no)
     osc1File: '',
 
     osc2Type: 'square',
     osc2Transpose: '-12',
     osc2Cents: '0',
     osc2RetrigPhase: '-1',
+    osc2IsTracking: '1',
     osc2Sync: '0',
     osc2File: '',
 
@@ -710,7 +1301,7 @@ const defaultParams = {
     filterRoute: 'HPF2LPF',
     waveFold: '0x80000000',
 
-    // LFOs
+    // LFOs (Community Firmware supports 4 LFOs total)
     lfo1Type: 'triangle',
     lfo1SyncLevel: '0',
     lfo1SyncType: '0',
@@ -720,6 +1311,16 @@ const defaultParams = {
     lfo2SyncLevel: '0',
     lfo2SyncType: '0',
     lfo2Rate: '0x00000000',
+    
+    lfo3Type: 'triangle',
+    lfo3SyncLevel: '0',
+    lfo3SyncType: '0',
+    lfo3Rate: '0x00000000',
+    
+    lfo4Type: 'triangle',
+    lfo4SyncLevel: '0',
+    lfo4SyncType: '0',
+    lfo4Rate: '0x00000000',
 
     // Effects
     modFXType: 'none',
@@ -747,10 +1348,14 @@ const defaultParams = {
     stutterRate: '0x00000000',
 
     // Sidechain/Compressor
+    sidechainSend: '0',        // Sidechain send level (sound attribute)
     sidechainSyncLevel: '6',
     sidechainSyncType: '0',
     sidechainAttack: '327244',
     sidechainRelease: '936',
+    
+    // Clipping
+    clippingAmount: '0',
     compressorShape: '0xDC28F5B2',
 
     // Arpeggiator
@@ -769,6 +1374,17 @@ const defaultParams = {
 // Current state
 let currentState = { ...defaultParams };
 let patchCables = [];
+
+// Pass-through storage for parameters we don't have UI for
+// This preserves data when loading and re-saving files
+let passThroughData = {
+    soundAttributes: {},  // Attributes on <sound> tag we don't edit
+    osc1Attributes: {},   // Attributes on <osc1> we don't edit
+    osc2Attributes: {},   // Attributes on <osc2> we don't edit
+    osc1SubTags: '',      // Sub-tags inside <osc1> (like <zone>, <sampleRanges>)
+    osc2SubTags: '',      // Sub-tags inside <osc2>
+    unknownTags: ''       // Any tags we don't recognize
+};
 
 // Modulation sources and destinations
 const modSources = [
@@ -1240,39 +1856,75 @@ function generateXML() {
     xml += '\n\tearliestCompatibleFirmware="4.1.0-alpha"';
     xml += `\n\tpolyphonic="${currentState.polyphonic}"`;
     xml += `\n\tvoicePriority="${currentState.voicePriority}"`;
+    
+    // Optional sidechain send level
+    if (currentState.sidechainSend && currentState.sidechainSend !== '0') {
+        xml += `\n\tsideChainSend="${currentState.sidechainSend}"`;
+    }
+    
     xml += `\n\tmode="${currentState.mode}"`;
+    
+    // Optional sound-level transpose
+    if (currentState.transpose && currentState.transpose !== '0') {
+        xml += `\n\ttranspose="${currentState.transpose}"`;
+    }
+    
+    xml += `\n\tmodFXType="${currentState.modFXType}"`;
     xml += `\n\tlpfMode="${currentState.lpfMode}"`;
     if (currentState.hpfMode) xml += `\n\thpfMode="${currentState.hpfMode}"`;
-    xml += `\n\tmodFXType="${currentState.modFXType}"`;
     if (currentState.filterRoute) xml += `\n\tfilterRoute="${currentState.filterRoute}"`;
+    
+    // Optional clipping amount
+    if (currentState.clippingAmount && currentState.clippingAmount !== '0') {
+        xml += `\n\tclippingAmount="${currentState.clippingAmount}"`;
+    }
+    
     if (currentState.maxVoices !== '8') xml += `\n\tmaxVoices="${currentState.maxVoices}"`;
     xml += '>\n';
 
     // Oscillator 1
     xml += `\t<osc1\n\t\ttype="${currentState.osc1Type}"`;
+    if (currentState.osc1IsTracking !== undefined && currentState.osc1IsTracking !== '1') {
+        xml += `\n\t\tisTracking="${currentState.osc1IsTracking}"`;
+    }
     xml += `\n\t\ttranspose="${currentState.osc1Transpose}"`;
     xml += `\n\t\tcents="${currentState.osc1Cents}"`;
     xml += `\n\t\tretrigPhase="${currentState.osc1RetrigPhase}"`;
-
-    // Add file if specified for sample/wavetable
+    
+    // Add fileName attribute if specified for sample/wavetable
     if (currentState.osc1File && (currentState.osc1Type === 'sample' || currentState.osc1Type === 'wavetable')) {
-        xml += ` />\n\t\t<osc1 fileName="${currentState.osc1File}"`;
+        xml += `\n\t\tfileName="${currentState.osc1File}"`;
     }
+    
+    // Add any pass-through attributes we don't have UI for
+    for (const [key, value] of Object.entries(passThroughData.osc1Attributes)) {
+        xml += `\n\t\t${key}="${value}"`;
+    }
+    
     xml += ' />\n';
 
     // Oscillator 2
     xml += `\t<osc2\n\t\ttype="${currentState.osc2Type}"`;
+    if (currentState.osc2IsTracking !== undefined && currentState.osc2IsTracking !== '1') {
+        xml += `\n\t\tisTracking="${currentState.osc2IsTracking}"`;
+    }
     xml += `\n\t\ttranspose="${currentState.osc2Transpose}"`;
     xml += `\n\t\tcents="${currentState.osc2Cents}"`;
-    xml += `\n\t\tretrigPhase="${currentState.osc2RetrigPhase}"`;
     if (currentState.osc2Sync === '1') {
         xml += `\n\t\toscillatorSync="${currentState.osc2Sync}"`;
     }
-
-    // Add file if specified for sample/wavetable
+    xml += `\n\t\tretrigPhase="${currentState.osc2RetrigPhase}"`;
+    
+    // Add fileName attribute if specified for sample/wavetable
     if (currentState.osc2File && (currentState.osc2Type === 'sample' || currentState.osc2Type === 'wavetable')) {
-        xml += ` />\n\t\t<osc2 fileName="${currentState.osc2File}"`;
+        xml += `\n\t\tfileName="${currentState.osc2File}"`;
     }
+    
+    // Add any pass-through attributes we don't have UI for
+    for (const [key, value] of Object.entries(passThroughData.osc2Attributes)) {
+        xml += `\n\t\t${key}="${value}"`;
+    }
+    
     xml += ' />\n';
 
     // LFOs
@@ -1286,6 +1938,15 @@ function generateXML() {
         xml += ` syncType="${currentState.lfo2SyncType}"`;
     }
     xml += ' />\n';
+    
+    // LFO3 and LFO4 (Community Firmware)
+    xml += `\t<lfo3 type="${currentState.lfo3Type}"`;
+    xml += ` syncLevel="${currentState.lfo3SyncLevel}"`;
+    xml += ` syncType="${currentState.lfo3SyncType}" />\n`;
+    
+    xml += `\t<lfo4 type="${currentState.lfo4Type}"`;
+    xml += ` syncLevel="${currentState.lfo4SyncLevel}"`;
+    xml += ` syncType="${currentState.lfo4SyncType}" />\n`;
 
     // Unison
     xml += `\t<unison num="${currentState.unisonNum}"`;
@@ -1301,11 +1962,18 @@ function generateXML() {
     xml += `\n\t\tsyncLevel="${currentState.delaySyncLevel}"`;
     xml += `\n\t\tsyncType="${currentState.delaySyncType}" />\n`;
 
-    // Sidechain (formerly compressor)
-    xml += `\t<sidechain\n\t\tsyncLevel="${currentState.sidechainSyncLevel}"`;
-    xml += `\n\t\tsyncType="${currentState.sidechainSyncType}"`;
-    xml += `\n\t\tattack="${currentState.sidechainAttack}"`;
-    xml += `\n\t\trelease="${currentState.sidechainRelease}" />\n`;
+    // Sidechain (formerly compressor) - only write if non-default values
+    const hasSidechain = currentState.sidechainSyncLevel !== '6' || 
+                        currentState.sidechainSyncType !== '0' ||
+                        currentState.sidechainAttack !== '327244' ||
+                        currentState.sidechainRelease !== '936';
+    
+    if (hasSidechain) {
+        xml += `\t<sidechain\n\t\tsyncLevel="${currentState.sidechainSyncLevel}"`;
+        xml += `\n\t\tsyncType="${currentState.sidechainSyncType}"`;
+        xml += `\n\t\tattack="${currentState.sidechainAttack}"`;
+        xml += `\n\t\trelease="${currentState.sidechainRelease}" />\n`;
+    }
 
     // Default parameters
     xml += '\t<defaultParams';
@@ -1329,6 +1997,8 @@ function generateXML() {
     xml += `\n\t\thpfMorph="${currentState.hpfMorph}"`;
     xml += `\n\t\tlfo1Rate="${currentState.lfo1Rate}"`;
     xml += `\n\t\tlfo2Rate="${currentState.lfo2Rate}"`;
+    xml += `\n\t\tlfo3Rate="${currentState.lfo3Rate}"`;
+    xml += `\n\t\tlfo4Rate="${currentState.lfo4Rate}"`;
     xml += `\n\t\tmodulator1Amount="${currentState.modulator1Amount}"`;
     xml += `\n\t\tmodulator1Feedback="${currentState.modulator1Feedback}"`;
     xml += `\n\t\tmodulator2Amount="${currentState.modulator2Amount}"`;
@@ -1415,7 +2085,8 @@ function downloadXML() {
     // Generate and download XML in one step - silent, no notification
     const xml = generateXML();
     const presetName = document.getElementById('presetName').value || 'My Synth';
-    const filename = presetName.replace(/[^a-z0-9]/gi, '_') + '.XML';
+    // Keep spaces, only remove characters that are invalid in filenames
+    const filename = presetName.replace(/[\/\\:*?"<>|]/g, '_') + '.XML';
 
     const blob = new Blob([xml], { type: 'text/xml' });
     const url = URL.createObjectURL(blob);
@@ -1445,6 +2116,9 @@ document.getElementById('xmlFileInput').addEventListener('change', (e) => {
     reader.onload = (event) => {
         try {
             parseXML(event.target.result);
+            // Clear original filepath since this is loaded from local file
+            originalLoadedFilepath = null;
+            updateSavePathIndicator();
             showNotification('✓ Preset loaded: ' + file.name);
         } catch (error) {
             showNotification('✗ Error loading XML: ' + error.message, true);
@@ -1462,6 +2136,16 @@ function parseXML(xmlString) {
     if (!sound) {
         throw new Error('Invalid Deluge synth XML file');
     }
+    
+    // Clear pass-through data for new file
+    passThroughData = {
+        soundAttributes: {},
+        osc1Attributes: {},
+        osc2Attributes: {},
+        osc1SubTags: '',
+        osc2SubTags: '',
+        unknownTags: ''
+    };
 
     // Parse attributes
     if (sound.hasAttribute('polyphonic')) currentState.polyphonic = sound.getAttribute('polyphonic');
@@ -1487,8 +2171,18 @@ function parseXML(xmlString) {
 
         if (osc1.querySelector('retrigPhase')) currentState.osc1RetrigPhase = osc1.querySelector('retrigPhase').textContent;
         else if (osc1.hasAttribute('retrigPhase')) currentState.osc1RetrigPhase = osc1.getAttribute('retrigPhase');
+        
+        if (osc1.hasAttribute('isTracking')) currentState.osc1IsTracking = osc1.getAttribute('isTracking');
 
         if (osc1.hasAttribute('fileName')) currentState.osc1File = osc1.getAttribute('fileName');
+        
+        // Store unknown attributes for pass-through
+        const knownAttrs = ['type', 'transpose', 'cents', 'retrigPhase', 'isTracking', 'fileName'];
+        for (const attr of osc1.attributes) {
+            if (!knownAttrs.includes(attr.name)) {
+                passThroughData.osc1Attributes[attr.name] = attr.value;
+            }
+        }
     }
 
     // Parse OSC2
@@ -1505,11 +2199,21 @@ function parseXML(xmlString) {
 
         if (osc2.querySelector('retrigPhase')) currentState.osc2RetrigPhase = osc2.querySelector('retrigPhase').textContent;
         else if (osc2.hasAttribute('retrigPhase')) currentState.osc2RetrigPhase = osc2.getAttribute('retrigPhase');
+        
+        if (osc2.hasAttribute('isTracking')) currentState.osc2IsTracking = osc2.getAttribute('isTracking');
 
         if (osc2.querySelector('oscillatorSync')) currentState.osc2Sync = osc2.querySelector('oscillatorSync').textContent;
         else if (osc2.hasAttribute('oscillatorSync')) currentState.osc2Sync = osc2.getAttribute('oscillatorSync');
 
         if (osc2.hasAttribute('fileName')) currentState.osc2File = osc2.getAttribute('fileName');
+        
+        // Store unknown attributes for pass-through
+        const knownAttrs = ['type', 'transpose', 'cents', 'retrigPhase', 'isTracking', 'oscillatorSync', 'fileName'];
+        for (const attr of osc2.attributes) {
+            if (!knownAttrs.includes(attr.name)) {
+                passThroughData.osc2Attributes[attr.name] = attr.value;
+            }
+        }
     }
 
     // Parse LFOs
@@ -1531,6 +2235,26 @@ function parseXML(xmlString) {
 
         if (lfo2.hasAttribute('syncLevel')) currentState.lfo2SyncLevel = lfo2.getAttribute('syncLevel');
         if (lfo2.hasAttribute('syncType')) currentState.lfo2SyncType = lfo2.getAttribute('syncType');
+    }
+    
+    // Parse LFO3 (Community Firmware)
+    const lfo3 = sound.querySelector('lfo3');
+    if (lfo3) {
+        if (lfo3.querySelector('type')) currentState.lfo3Type = lfo3.querySelector('type').textContent;
+        else if (lfo3.hasAttribute('type')) currentState.lfo3Type = lfo3.getAttribute('type');
+
+        if (lfo3.hasAttribute('syncLevel')) currentState.lfo3SyncLevel = lfo3.getAttribute('syncLevel');
+        if (lfo3.hasAttribute('syncType')) currentState.lfo3SyncType = lfo3.getAttribute('syncType');
+    }
+    
+    // Parse LFO4 (Community Firmware)
+    const lfo4 = sound.querySelector('lfo4');
+    if (lfo4) {
+        if (lfo4.querySelector('type')) currentState.lfo4Type = lfo4.querySelector('type').textContent;
+        else if (lfo4.hasAttribute('type')) currentState.lfo4Type = lfo4.getAttribute('type');
+
+        if (lfo4.hasAttribute('syncLevel')) currentState.lfo4SyncLevel = lfo4.getAttribute('syncLevel');
+        if (lfo4.hasAttribute('syncType')) currentState.lfo4SyncType = lfo4.getAttribute('syncType');
     }
 
     // Parse unison
@@ -1580,7 +2304,7 @@ function parseXML(xmlString) {
             'noiseVolume', 'volume', 'pan',
             'lpfFrequency', 'lpfResonance', 'lpfMorph',
             'hpfFrequency', 'hpfResonance', 'hpfMorph',
-            'lfo1Rate', 'lfo2Rate',
+            'lfo1Rate', 'lfo2Rate', 'lfo3Rate', 'lfo4Rate',
             'modulator1Amount', 'modulator1Feedback',
             'modulator2Amount', 'modulator2Feedback',
             'carrier1Feedback', 'carrier2Feedback',
@@ -1683,7 +2407,20 @@ function resetToDefault() {
     if (confirm('Reset all parameters to default values?')) {
         currentState = { ...defaultParams };
         patchCables = [];
+        originalLoadedFilepath = null; // Clear since we're starting fresh
+        
+        // Clear pass-through data
+        passThroughData = {
+            soundAttributes: {},
+            osc1Attributes: {},
+            osc2Attributes: {},
+            osc1SubTags: '',
+            osc2SubTags: '',
+            unknownTags: ''
+        };
+        
         updateUIFromState();
+        updateSavePathIndicator();
         showNotification('✓ Reset to default values');
     }
 }
