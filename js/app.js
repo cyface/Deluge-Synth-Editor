@@ -2,43 +2,48 @@
 // Main application logic, initialization, randomization
 
 // ============================================================================
-// THEME SWITCHER
+// COLOR THEME SWITCHER
 // ============================================================================
 
 /**
- * Toggle between dark and light theme
+ * Set color theme (orange, blue, green, magenta)
  */
-function toggleTheme() {
+function setTheme(theme) {
     const body = document.body;
-    const themeIcon = document.getElementById('themeIcon');
-    const isLight = body.classList.contains('light-theme');
     
-    if (isLight) {
-        // Switch to dark
-        body.classList.remove('light-theme');
-        themeIcon.textContent = '☀️';
-        localStorage.setItem('theme', 'dark');
-    } else {
-        // Switch to light
-        body.classList.add('light-theme');
-        themeIcon.textContent = '🌙';
-        localStorage.setItem('theme', 'light');
+    // Remove all theme classes
+    body.classList.remove('theme-blue', 'theme-green', 'theme-magenta');
+    
+    // Add new theme class (orange is default, no class needed)
+    if (theme !== 'orange') {
+        body.classList.add(`theme-${theme}`);
     }
+    
+    // Update active button
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`.theme-btn.${theme}`).classList.add('active');
+    
+    // Save to localStorage
+    localStorage.setItem('colorTheme', theme);
+    
+    console.log('🎨 Theme changed to:', theme);
 }
 
 /**
  * Initialize theme from localStorage
  */
 function initializeTheme() {
-    const savedTheme = localStorage.getItem('theme');
-    const themeIcon = document.getElementById('themeIcon');
-    
-    if (savedTheme === 'light') {
-        document.body.classList.add('light-theme');
-        if (themeIcon) themeIcon.textContent = '🌙';
-    } else {
-        if (themeIcon) themeIcon.textContent = '☀️';
-    }
+    const savedTheme = localStorage.getItem('colorTheme') || 'orange';
+    setTheme(savedTheme);
+}
+
+// Initialize theme on load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeTheme);
+} else {
+    initializeTheme();
 }
 
 // ============================================================================

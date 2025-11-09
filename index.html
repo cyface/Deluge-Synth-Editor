@@ -14,6 +14,34 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --accent-color: #ff6b35;
+            --accent-hover: #d65628;
+            --accent-glow: rgba(255, 107, 53, 0.3);
+            --accent-shadow: rgba(255, 107, 53, 0.4);
+        }
+
+        body.theme-blue {
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --accent-shadow: rgba(59, 130, 246, 0.4);
+        }
+
+        body.theme-green {
+            --accent-color: #10b981;
+            --accent-hover: #059669;
+            --accent-glow: rgba(16, 185, 129, 0.3);
+            --accent-shadow: rgba(16, 185, 129, 0.4);
+        }
+
+        body.theme-magenta {
+            --accent-color: #ec4899;
+            --accent-hover: #db2777;
+            --accent-glow: rgba(236, 72, 153, 0.3);
+            --accent-shadow: rgba(236, 72, 153, 0.4);
+        }
+
         body {
             font-family: 'Raleway', sans-serif;
             font-weight: 300;
@@ -30,12 +58,52 @@
             position: relative;
         }
 
+        .theme-switcher {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 8px;
+            z-index: 1000;
+            background: #2a2a2a;
+            padding: 8px;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .theme-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #444;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 0;
+            box-shadow: none;
+        }
+
+        .theme-btn:hover {
+            transform: scale(1.1);
+            border-color: #888;
+        }
+
+        .theme-btn.active {
+            border: 3px solid white;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        .theme-btn.orange { background: linear-gradient(145deg, #ff6b35, #d65628); }
+        .theme-btn.blue { background: linear-gradient(145deg, #3b82f6, #2563eb); }
+        .theme-btn.green { background: linear-gradient(145deg, #10b981, #059669); }
+        .theme-btn.magenta { background: linear-gradient(145deg, #ec4899, #db2777); }
+
         h1 {
             text-align: center;
-            color: #ff6b35;
+            color: var(--accent-color);
             margin-bottom: 30px;
             font-size: 2.5em;
-            text-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
+            text-shadow: 0 0 10px var(--accent-glow);
+            transition: all 0.3s ease;
         }
 
         .actions {
@@ -47,7 +115,7 @@
         }
 
         button {
-            background: linear-gradient(145deg, #ff6b35, #d65628);
+            background: linear-gradient(145deg, var(--accent-color), var(--accent-hover));
             color: white;
             border: none;
             padding: 12px 30px;
@@ -64,7 +132,7 @@
 
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(255, 107, 53, 0.4);
+            box-shadow: 0 6px 12px var(--accent-shadow);
         }
 
         button:active {
@@ -114,11 +182,12 @@
         }
 
         .section-title {
-            color: #ff6b35;
+            color: var(--accent-color);
             font-size: 1.4em;
             margin-bottom: 20px;
             padding-bottom: 10px;
             border-bottom: 2px solid #444;
+            transition: color 0.3s ease;
         }
 
         .controls-grid {
@@ -176,7 +245,7 @@
         .knob-value {
             margin-top: 8px;
             font-size: 0.85em;
-            color: #ff6b35;
+            color: var(--accent-color);
             font-weight: 300;
         }
 
@@ -218,7 +287,7 @@
             text-align: center;
             margin-top: 5px;
             font-size: 0.85em;
-            color: #ff6b35;
+            color: var(--accent-color);
             font-weight: 300;
         }
 
@@ -235,7 +304,7 @@
 
         select:focus, input:focus {
             outline: none;
-            border-color: #ff6b35;
+            border-color: var(--accent-color);
         }
 
         /* Envelope display */
@@ -345,7 +414,7 @@
 
         .modal-title {
             font-size: 1.5em;
-            color: #ff6b35;
+            color: var(--accent-color);
         }
 
         .close-btn {
@@ -381,7 +450,7 @@
         }
 
         .file-item.folder {
-            color: #ff6b35;
+            color: var(--accent-color);
             font-weight: 300;
         }
 
@@ -393,6 +462,13 @@
     </style>
 </head>
 <body>
+    <div class="theme-switcher">
+        <button class="theme-btn orange active" onclick="setTheme('orange')" title="Orange Theme" aria-label="Orange theme"></button>
+        <button class="theme-btn blue" onclick="setTheme('blue')" title="Blue Theme" aria-label="Blue theme"></button>
+        <button class="theme-btn green" onclick="setTheme('green')" title="Green Theme" aria-label="Green theme"></button>
+        <button class="theme-btn magenta" onclick="setTheme('magenta')" title="Magenta Theme" aria-label="Magenta theme"></button>
+    </div>
+    
     <div class="container">
         <div style="text-align: center; margin-bottom: 20px;">
             <img src="logo-deluge@2x.png" alt="Deluge Logo" style="max-width: 200px; height: auto;">
