@@ -340,3 +340,40 @@ function renderPatchCables() {
     });
 }
 
+
+// ============================================================================
+// DX7 UI TOGGLE
+// ============================================================================
+
+/**
+ * Setup oscillator type change listeners to show/hide DX7 UI
+ */
+function setupOscillatorTypeListeners() {
+    const osc1Type = document.getElementById('osc1Type');
+    const osc2Type = document.getElementById('osc2Type');
+    
+    if (osc1Type) {
+        osc1Type.addEventListener('change', () => {
+            const isDX7 = osc1Type.value === 'dx7';
+            document.getElementById('osc1DX7Container').style.display = isDX7 ? 'block' : 'none';
+            if (isDX7) {
+                initializeDX7UI(1);
+            }
+        });
+    }
+    
+    if (osc2Type) {
+        osc2Type.addEventListener('change', () => {
+            const isDX7 = osc2Type.value === 'dx7';
+            document.getElementById('osc2DX7Container').style.display = isDX7 ? 'block' : 'none';
+            if (isDX7) {
+                initializeDX7UI(2);
+            }
+        });
+    }
+}
+
+// Initialize on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+    setupOscillatorTypeListeners();
+});

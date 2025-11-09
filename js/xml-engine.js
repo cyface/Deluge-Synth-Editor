@@ -145,6 +145,17 @@ function generateXML() {
         xml += `\n\t\tfileName="${currentState.osc1File}"`;
     }
     
+    // Add DX7 attributes if type is dx7
+    if (currentState.osc1Type === 'dx7' && currentState.osc1DX7Patch) {
+        xml += `\n\t\tdx7patch="${currentState.osc1DX7Patch}"`;
+        if (currentState.osc1DX7EngineMode && currentState.osc1DX7EngineMode !== '0') {
+            xml += `\n\t\tdx7enginemode="${currentState.osc1DX7EngineMode}"`;
+        }
+        if (currentState.osc1DX7RandomDetune && currentState.osc1DX7RandomDetune !== '0') {
+            xml += `\n\t\tdx7randomdetune="${currentState.osc1DX7RandomDetune}"`;
+        }
+    }
+    
     // Add any pass-through attributes we don't have UI for
     for (const [key, value] of Object.entries(passThroughData.osc1Attributes)) {
         xml += `\n\t\t${key}="${value}"`;
@@ -167,6 +178,17 @@ function generateXML() {
     // Add fileName attribute if specified for sample/wavetable
     if (currentState.osc2File && (currentState.osc2Type === 'sample' || currentState.osc2Type === 'wavetable')) {
         xml += `\n\t\tfileName="${currentState.osc2File}"`;
+    }
+    
+    // Add DX7 attributes if type is dx7
+    if (currentState.osc2Type === 'dx7' && currentState.osc2DX7Patch) {
+        xml += `\n\t\tdx7patch="${currentState.osc2DX7Patch}"`;
+        if (currentState.osc2DX7EngineMode && currentState.osc2DX7EngineMode !== '0') {
+            xml += `\n\t\tdx7enginemode="${currentState.osc2DX7EngineMode}"`;
+        }
+        if (currentState.osc2DX7RandomDetune && currentState.osc2DX7RandomDetune !== '0') {
+            xml += `\n\t\tdx7randomdetune="${currentState.osc2DX7RandomDetune}"`;
+        }
     }
     
     // Add any pass-through attributes we don't have UI for
@@ -425,8 +447,13 @@ function parseXML(xmlString) {
 
         if (osc1.hasAttribute('fileName')) currentState.osc1File = osc1.getAttribute('fileName');
         
+        // Parse DX7 attributes
+        if (osc1.hasAttribute('dx7patch')) currentState.osc1DX7Patch = osc1.getAttribute('dx7patch');
+        if (osc1.hasAttribute('dx7enginemode')) currentState.osc1DX7EngineMode = osc1.getAttribute('dx7enginemode');
+        if (osc1.hasAttribute('dx7randomdetune')) currentState.osc1DX7RandomDetune = osc1.getAttribute('dx7randomdetune');
+        
         // Store unknown attributes for pass-through
-        const knownAttrs = ['type', 'transpose', 'cents', 'retrigPhase', 'isTracking', 'fileName'];
+        const knownAttrs = ['type', 'transpose', 'cents', 'retrigPhase', 'isTracking', 'fileName', 'dx7patch', 'dx7enginemode', 'dx7randomdetune'];
         for (const attr of osc1.attributes) {
             if (!knownAttrs.includes(attr.name)) {
                 passThroughData.osc1Attributes[attr.name] = attr.value;
@@ -456,8 +483,13 @@ function parseXML(xmlString) {
 
         if (osc2.hasAttribute('fileName')) currentState.osc2File = osc2.getAttribute('fileName');
         
+        // Parse DX7 attributes
+        if (osc2.hasAttribute('dx7patch')) currentState.osc2DX7Patch = osc2.getAttribute('dx7patch');
+        if (osc2.hasAttribute('dx7enginemode')) currentState.osc2DX7EngineMode = osc2.getAttribute('dx7enginemode');
+        if (osc2.hasAttribute('dx7randomdetune')) currentState.osc2DX7RandomDetune = osc2.getAttribute('dx7randomdetune');
+        
         // Store unknown attributes for pass-through
-        const knownAttrs = ['type', 'transpose', 'cents', 'retrigPhase', 'isTracking', 'oscillatorSync', 'fileName'];
+        const knownAttrs = ['type', 'transpose', 'cents', 'retrigPhase', 'isTracking', 'oscillatorSync', 'fileName', 'dx7patch', 'dx7enginemode', 'dx7randomdetune'];
         for (const attr of osc2.attributes) {
             if (!knownAttrs.includes(attr.name)) {
                 passThroughData.osc2Attributes[attr.name] = attr.value;
