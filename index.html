@@ -464,9 +464,175 @@
             padding: 20px;
             color: #888;
         }
+
+        /* Deluge Connection Container */
+        .deluge-connection-wrapper {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10000;
+        }
+
+        /* Deluge Connection Icon */
+        .deluge-connection {
+            width: 48px;
+            height: 48px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #666;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .deluge-connection-wrapper:hover .deluge-connection {
+            transform: scale(1.05);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Connection states */
+        .deluge-connection.disconnected {
+            border-color: #ff4444;
+        }
+
+        .deluge-connection.connected {
+            border-color: #4CAF50;
+        }
+
+        .deluge-connection.active {
+            border-color: #4CAF50;
+            position: relative;
+        }
+
+        .deluge-connection.active::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            border-radius: 12px;
+            animation: throb 1s ease-in-out infinite;
+        }
+
+        @keyframes throb {
+            0% { 
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.3;
+                transform: scale(1.15);
+            }
+            100% { 
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Icon SVG styling */
+        .deluge-connection svg {
+            width: 28px;
+            height: 28px;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .deluge-connection.disconnected svg {
+            stroke: #ff4444;
+        }
+
+        .deluge-connection.connected svg,
+        .deluge-connection.active svg {
+            stroke: #4CAF50;
+        }
+
+        /* Animated data flow */
+        .deluge-connection.active .data-flow {
+            animation: dataFlow 1.5s ease-in-out infinite;
+        }
+
+        @keyframes dataFlow {
+            0% { opacity: 0; transform: translateY(-3px) scale(0.5); }
+            50% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(3px) scale(0.5); }
+        }
+
+        /* Disconnected slash */
+        .deluge-connection .disconnect-slash {
+            stroke: #ff4444;
+            stroke-width: 3;
+            display: none;
+        }
+
+        .deluge-connection.disconnected .disconnect-slash {
+            display: block;
+        }
+
+        /* Connection Status Text */
+        .connection-status-text {
+            font-family: 'Raleway', sans-serif;
+            font-weight: 300;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #888;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 6px 12px;
+            border-radius: 6px;
+            white-space: nowrap;
+            transition: color 0.3s ease;
+        }
+
+        .deluge-connection.disconnected + .connection-status-text {
+            color: #ff4444;
+        }
+
+        .deluge-connection.connected + .connection-status-text {
+            color: #4CAF50;
+        }
+
+        .deluge-connection.active + .connection-status-text {
+            color: #4CAF50;
+        }
     </style>
 </head>
 <body>
+    <!-- Deluge Connection -->
+    <div class="deluge-connection-wrapper" onclick="toggleDelugeConnection()" style="cursor: pointer;">
+        <div id="delugeConnection" class="deluge-connection disconnected" title="Click to connect to Deluge">
+        <svg viewBox="0 0 24 24">
+            <!-- Plug icon -->
+            <path d="M8 3v4M16 3v4" />
+            <path d="M7 7h10v5a5 5 0 0 1-10 0V7z" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+            
+            <!-- Data flow particles (animated when active) -->
+            <g class="data-flow">
+                <circle cx="12" cy="9" r="1" />
+            </g>
+            <g class="data-flow" style="animation-delay: 0.3s;">
+                <circle cx="12" cy="11" r="1" />
+            </g>
+            <g class="data-flow" style="animation-delay: 0.6s;">
+                <circle cx="12" cy="13" r="1" />
+            </g>
+            
+            <!-- Disconnect slash -->
+            <line class="disconnect-slash" x1="4" y1="4" x2="20" y2="20" />
+        </svg>
+        </div>
+        <div id="connectionStatusText" class="connection-status-text">Connect to Deluge</div>
+    </div>
+    
     <div class="theme-switcher">
         <button class="theme-btn orange active" onclick="setTheme('orange')" title="Orange Theme" aria-label="Orange theme"></button>
         <button class="theme-btn blue" onclick="setTheme('blue')" title="Blue Theme" aria-label="Blue theme"></button>
@@ -495,14 +661,24 @@
         </div>
 
         <!-- Action Buttons -->
-        <div class="actions" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
-            <button id="connectBtn" onclick="connectToDeluge()">🔌 Connect to Deluge</button>
-            <button id="sendToDelugeBtn" onclick="sendToDeluge()" style="display: none;">📤 Send to Deluge</button>
-            <button id="loadFromDelugeBtn" onclick="showDelugeBrowser()" style="display: none;">📥 Load from Deluge</button>
-            <button onclick="loadXML()">Load XML File</button>
-            <button onclick="downloadXML()">Download XML</button>
-            <button onclick="randomizePreset()">🎲 Randomize</button>
-            <button onclick="resetToDefault()">Reset to Default</button>
+        <div class="actions" style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
+            <!-- Row 1: Deluge Operations (shown when connected) -->
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="sendToDelugeBtn" onclick="sendToDeluge()" style="display: none;">📤 Send to Deluge</button>
+                <button id="loadFromDelugeBtn" onclick="showDelugeBrowser()" style="display: none;">📥 Load from Deluge</button>
+            </div>
+            
+            <!-- Row 2: File Operations -->
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button onclick="loadXML()">📁 Load XML File</button>
+                <button onclick="downloadXML()">💾 Download XML</button>
+            </div>
+            
+            <!-- Row 3: Preset Tools -->
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button onclick="randomizePreset()">🎲 Randomize</button>
+                <button onclick="resetToDefault()">🔄 Reset to Default</button>
+            </div>
         </div>
 
         <div class="tabs">

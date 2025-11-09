@@ -43,6 +43,7 @@ async function sendToDeluge() {
 
     try {
         // Always check if file exists and ask for confirmation
+        showCommIndicator();
         showNotification('📤 Checking file...');
         const exists = await fileExists(filepath);
         
@@ -56,6 +57,7 @@ async function sendToDeluge() {
             );
             
             if (!overwrite) {
+                hideCommIndicator();
                 showNotification('✗ Save cancelled', true);
                 return;
             }
@@ -75,6 +77,7 @@ async function sendToDeluge() {
         
         showNotification(`✓ Saved to ${filepath} - Reload patch on Deluge to hear changes`);
     } catch (error) {
+        hideCommIndicator();
         console.error('Error sending to Deluge:', error);
         showNotification('✗ Failed: ' + error.message, true);
     }
@@ -326,7 +329,10 @@ function generateXML() {
         patchCables.forEach(cable => {
             xml += `\t\t\t<patchCable\n\t\t\t\tsource="${cable.source}"`;
             xml += `\n\t\t\t\tdestination="${cable.destination}"`;
-            xml += `\n\t\t\t\tamount="${cable.amount}" />\n`;
+            xml += `\n\t\t\t\tamount="${cable.amount}"`;
+            // Use cable's rangeAdjustable if set, otherwise default to 1 (bipolar)
+            const rangeAdj = cable.rangeAdjustable !== undefined ? cable.rangeAdjustable : '1';
+            xml += `\n\t\t\t\trangeAdjustable="${rangeAdj}" />\n`;
         });
         xml += '\t\t</patchCables>\n';
     }
@@ -671,7 +677,8 @@ function parseXML(xmlString) {
             patchCables.push({
                 source: cable.getAttribute('source'),
                 destination: cable.getAttribute('destination'),
-                amount: cable.getAttribute('amount')
+                amount: cable.getAttribute('amount'),
+                rangeAdjustable: cable.getAttribute('rangeAdjustable') || '1'  // Default to bipolar
             });
         });
 

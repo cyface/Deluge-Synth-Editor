@@ -1,6 +1,55 @@
 // Deluge Synth Editor - SYSEX Core
 // Huge thanks to silicakes - Michael Katz for the DEx smSysex protocol implementation in https://github.com/silicakes/deluge-extensions
 // ============================================================================
+// CONNECTION STATUS ICON
+// ============================================================================
+
+function updateConnectionIcon(state) {
+    const icon = document.getElementById('delugeConnection');
+    const statusText = document.getElementById('connectionStatusText');
+    if (!icon) return;
+    
+    icon.classList.remove('disconnected', 'connected', 'active');
+    icon.classList.add(state);
+    
+    // Update title and text based on state
+    const titles = {
+        'disconnected': 'Click to connect to Deluge',
+        'connected': 'Connected to Deluge',
+        'active': 'Communicating with Deluge...'
+    };
+    
+    const statusTexts = {
+        'disconnected': 'Disconnected',
+        'connected': 'Connected',
+        'active': 'Communicating'
+    };
+    
+    icon.title = titles[state] || titles['disconnected'];
+    if (statusText) {
+        statusText.textContent = statusTexts[state] || statusTexts['disconnected'];
+    }
+}
+
+function showCommIndicator() {
+    updateConnectionIcon('active');
+}
+
+function hideCommIndicator() {
+    updateConnectionIcon(delugeOutput ? 'connected' : 'disconnected');
+}
+
+async function toggleDelugeConnection() {
+    if (delugeOutput) {
+        // Already connected - show info
+        showNotification('✓ Already connected to Deluge');
+    } else {
+        // Not connected - initiate connection
+        await connectToDeluge();
+    }
+}
+
+// ============================================================================
 // WEB MIDI / DELUGE CONNECTION
 // ============================================================================
 
@@ -92,12 +141,13 @@ async function connectToDeluge() {
 
         if (delugeOutput && delugeInput) {
             
+            // Update connection icon
+            updateConnectionIcon('connected');
+            
             // Connect directly like DEx does - session will be established on first command
             document.getElementById('connectionStatus').innerHTML =
                 '✅ Connected to <strong>' + delugeOutput.name + '</strong>';
             document.getElementById('connectionStatus').style.color = '#4CAF50';
-            document.getElementById('connectBtn').textContent = '✅ Connected';
-            document.getElementById('connectBtn').disabled = true;
             
             // Show the Send and Load buttons
             document.getElementById('sendToDelugeBtn').style.display = 'inline';
@@ -498,22 +548,24 @@ async function sendPopupNotification() {
  * Write a complete file to Deluge with proper chunking
  */
 async function writeFile(path, data) {
-    // Convert string to bytes if needed
-    const bytes = typeof data === 'string' 
-        ? new TextEncoder().encode(data) 
-        : data;
-    
-    console.log('Writing file:', path, '(', bytes.length, 'bytes)');
-    
-    // 1. OPEN
-    const openResp = await sendJson({ open: { path, write: 1 } });
-    if (!openResp.json['^open']) {
-        throw new Error('Failed to open file for writing');
-    }
-    const fid = openResp.json['^open'].fid;
-    console.log('File opened with fid:', fid);
+    showCommIndicator();
     
     try {
+        // Convert string to bytes if needed
+        const bytes = typeof data === 'string' 
+            ? new TextEncoder().encode(data) 
+            : data;
+        
+        console.log('Writing file:', path, '(', bytes.length, 'bytes)');
+        
+        // 1. OPEN
+        const openResp = await sendJson({ open: { path, write: 1 } });
+        if (!openResp.json['^open']) {
+            throw new Error('Failed to open file for writing');
+        }
+        const fid = openResp.json['^open'].fid;
+        console.log('File opened with fid:', fid);
+        
         // 2. WRITE in 128-byte chunks
         const chunkSize = 128;
         let offset = 0;
@@ -541,15 +593,11 @@ async function writeFile(path, data) {
         await sendJson({ close: { fid } });
         console.log('File written successfully');
         
+        hideCommIndicator();
         return { success: true };
     } catch (error) {
-        // Try to close on error
-        console.error('Error during write, attempting to close file:', error);
-        try {
-            await sendJson({ close: { fid } });
-        } catch (e) {
-            console.error('Failed to close file after error:', e);
-        }
+        hideCommIndicator();
+        console.error('Error during write:', error);
         throw error;
     }
 }
@@ -558,17 +606,18 @@ async function writeFile(path, data) {
  * Read a complete file from Deluge with proper chunking
  */
 async function readFile(path) {
-    console.log('Reading file:', path);
-    
-    // 1. OPEN
-    const openResp = await sendJson({ open: { path, write: 0 } });
-    if (!openResp.json['^open']) {
-        throw new Error('Failed to open file for reading');
-    }
-    const { fid, size } = openResp.json['^open'];
-    console.log('File opened with fid:', fid, 'size:', size);
+    showCommIndicator();
     
     try {
+        console.log('Reading file:', path);
+        
+        // 1. OPEN
+        const openResp = await sendJson({ open: { path, write: 0 } });
+        if (!openResp.json['^open']) {
+            throw new Error('Failed to open file for reading');
+        }
+        const { fid, size } = openResp.json['^open'];
+        console.log('File opened with fid:', fid, 'size:', size);
         // 2. READ in 1024-byte chunks
         const result = new Uint8Array(size);
         const chunkSize = 1024;
@@ -597,14 +646,11 @@ async function readFile(path) {
         await sendJson({ close: { fid } });
         console.log('File read successfully');
         
+        hideCommIndicator();
         return result;
     } catch (error) {
-        console.error('Error during read, attempting to close file:', error);
-        try {
-            await sendJson({ close: { fid } });
-        } catch (e) {
-            console.error('Failed to close file after error:', e);
-        }
+        hideCommIndicator();
+        console.error('Error during read:', error);
         throw error;
     }
 }
@@ -636,12 +682,15 @@ async function listDirectory(path, forceRefresh = false) {
     
     // Fetch with pagination (Deluge has 25 entry limit per request)
     console.log('Fetching directory listing with pagination:', path);
+    showCommIndicator();
+    
     const allEntries = [];
     let offset = 0;
     const chunkSize = 64; // Request up to 64, but Deluge returns max 25
     let hasMore = true;
     
-    while (hasMore) {
+    try {
+        while (hasMore) {
         const resp = await sendJson({ dir: { path, offset, lines: chunkSize } });
         
         if (!resp.json['^dir']) {
@@ -670,14 +719,19 @@ async function listDirectory(path, forceRefresh = false) {
             console.warn('Directory has over 10000 entries, stopping');
             break;
         }
+        }
+        
+        
+        // Cache the result
+        directoryCache.set(path, allEntries);
+        cacheTimestamp.set(path, Date.now());
+        
+        hideCommIndicator();
+        return allEntries;
+    } catch (error) {
+        hideCommIndicator();
+        throw error;
     }
-    
-    
-    // Cache the result
-    directoryCache.set(path, allEntries);
-    cacheTimestamp.set(path, Date.now());
-    
-    return allEntries;
 }
 
 /**

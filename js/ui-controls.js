@@ -251,7 +251,8 @@ function addPatchCable() {
     const cable = {
         source: 'velocity',
         destination: 'volume',
-        amount: '0x3FFFFFE8'
+        amount: '0x3FFFFFE8',
+        rangeAdjustable: '1'  // Bipolar (-50 to +50)
     };
 
     patchCables.push(cable);
