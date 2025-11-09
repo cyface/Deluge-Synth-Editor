@@ -192,8 +192,9 @@ function drawEnvelope(canvasId, attack, decay, sustain, release, sustainMin = 0,
     const totalTime = attackTime + decayTime + sustainTime + releaseTime;
     const scale = (width - 40) / totalTime;
 
-    // Draw envelope
-    ctx.strokeStyle = '#ff6b35';
+    // Draw envelope - get accent color from CSS variable
+    const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim();
+    ctx.strokeStyle = accentColor || '#ff6b35';
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';

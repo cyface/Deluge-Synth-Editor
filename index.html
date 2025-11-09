@@ -161,8 +161,9 @@
         }
 
         .tab.active {
-            background: #ff6b35;
+            background: var(--accent-color);
             color: white;
+            transition: background 0.3s ease;
         }
 
         .tab-content {
@@ -234,12 +235,13 @@
             position: absolute;
             width: 4px;
             height: 32px;
-            background: linear-gradient(180deg, #ff6b35, #ff8855);
+            background: linear-gradient(180deg, var(--accent-color), var(--accent-hover));
             top: 8px;
             left: 50%;
             transform: translateX(-50%);
             border-radius: 2px;
-            box-shadow: 0 0 6px rgba(255, 107, 53, 0.6);
+            box-shadow: 0 0 6px var(--accent-shadow);
+            transition: all 0.3s ease;
         }
 
         .knob-value {
@@ -268,19 +270,21 @@
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: linear-gradient(145deg, #ff6b35, #d65628);
+            background: linear-gradient(145deg, var(--accent-color), var(--accent-hover));
             cursor: pointer;
             box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            transition: background 0.3s ease;
         }
 
         input[type="range"]::-moz-range-thumb {
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: linear-gradient(145deg, #ff6b35, #d65628);
+            background: linear-gradient(145deg, var(--accent-color), var(--accent-hover));
             cursor: pointer;
             border: none;
             box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            transition: background 0.3s ease;
         }
 
         .slider-value {
