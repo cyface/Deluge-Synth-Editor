@@ -700,6 +700,27 @@ function updateUIFromState() {
 
     // Update patch cables display
     renderPatchCables();
+    
+    // Show/hide DX7 panels based on oscillator types
+    if (currentState.osc1Type === 'dx7') {
+        const osc1Container = document.getElementById('osc1DX7Container');
+        if (osc1Container) {
+            osc1Container.style.display = 'block';
+            if (typeof initializeDX7UI === 'function') {
+                initializeDX7UI(1);
+            }
+        }
+    }
+    
+    if (currentState.osc2Type === 'dx7') {
+        const osc2Container = document.getElementById('osc2DX7Container');
+        if (osc2Container) {
+            osc2Container.style.display = 'block';
+            if (typeof initializeDX7UI === 'function') {
+                initializeDX7UI(2);
+            }
+        }
+    }
 }
 
 function resetToDefault() {
