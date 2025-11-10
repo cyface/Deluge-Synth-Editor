@@ -173,7 +173,7 @@ async function connectToDeluge() {
             for (const output of midiAccess.outputs.values()) {
                 errorMsg += '  • ' + output.name + '\n';
             }
-            errorMsg += '\nMake sure:\n- Deluge is powered on\n- Connected via USB Port 3 (rightmost)\n- Deluge shows up in the list above';
+            errorMsg += '\nMake sure:\n- Deluge is powered on\n- Connected via USB Port \n- Deluge shows up in the list above';
             alert(errorMsg);
         }
 
