@@ -61,10 +61,15 @@ function startConnectionCheck() {
         clearInterval(connectionCheckInterval);
     }
     
-    // Check connection every 15 seconds
-    connectionCheckInterval = setInterval(async () => {
-        await checkConnection();
-    }, CONNECTION_CHECK_INTERVAL);
+    // Wait 30 seconds before starting checks (give user time to work)
+    setTimeout(() => {
+        if (delugeOutput) {  // Only start if still connected
+            // Check connection every 15 seconds
+            connectionCheckInterval = setInterval(async () => {
+                await checkConnection();
+            }, CONNECTION_CHECK_INTERVAL);
+        }
+    }, 30000);
 }
 
 function stopConnectionCheck() {
@@ -86,16 +91,19 @@ async function checkConnection() {
     }
     
     try {
-        // Try to ping the Deluge with a short timeout
+        // Try to ping the Deluge with a 10-second timeout
         await Promise.race([
             ping(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Ping timeout')), 5000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Ping timeout')), 10000))
         ]);
-        // Still connected
+        // Still connected - ping succeeded
     } catch (error) {
-        // Connection lost
-        console.warn('Connection check failed:', error.message);
-        handleDisconnection();
+        // Connection lost - only disconnect if it's a real failure
+        // (not a session negotiation timeout which can happen during heavy use)
+        if (error.message !== 'Session timeout') {
+            console.warn('Connection check failed:', error.message);
+            handleDisconnection();
+        }
     }
 }
 
