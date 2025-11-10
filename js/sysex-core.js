@@ -50,6 +50,78 @@ async function toggleDelugeConnection() {
 }
 
 // ============================================================================
+// CONNECTION MONITORING
+// ============================================================================
+
+function startConnectionCheck() {
+    // Clear any existing interval
+    if (connectionCheckInterval) {
+        clearInterval(connectionCheckInterval);
+    }
+    
+    // Check connection every 15 seconds
+    connectionCheckInterval = setInterval(async () => {
+        await checkConnection();
+    }, CONNECTION_CHECK_INTERVAL);
+}
+
+function stopConnectionCheck() {
+    if (connectionCheckInterval) {
+        clearInterval(connectionCheckInterval);
+        connectionCheckInterval = null;
+    }
+}
+
+async function checkConnection() {
+    if (!delugeOutput || !delugeInput) {
+        return;
+    }
+    
+    try {
+        // Try to ping the Deluge with a short timeout
+        await Promise.race([
+            ping(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Ping timeout')), 3000))
+        ]);
+        // Still connected
+    } catch (error) {
+        // Connection lost
+        console.warn('Connection check failed:', error.message);
+        handleDisconnection();
+    }
+}
+
+function handleDisconnection() {
+    console.log('Deluge disconnected');
+    
+    // Stop checking
+    stopConnectionCheck();
+    
+    // Clear connection state
+    delugeOutput = null;
+    delugeInput = null;
+    currentSession = null;
+    
+    // Update UI
+    updateConnectionIcon('disconnected');
+    document.getElementById('connectionStatus').innerHTML = 'Not connected to Deluge';
+    document.getElementById('connectionStatus').style.color = '#888';
+    
+    // Hide Send/Load buttons
+    document.getElementById('sendToDelugeBtn').style.display = 'none';
+    document.getElementById('loadFromDelugeBtn').style.display = 'none';
+    
+    // Hide sample browse buttons
+    document.getElementById('osc1FileBrowse').style.display = 'none';
+    document.getElementById('osc2FileBrowse').style.display = 'none';
+    
+    // Hide save path indicator
+    document.getElementById('savePathIndicator').style.display = 'none';
+    
+    showNotification('⚠️ Deluge disconnected - click to reconnect', true);
+}
+
+// ============================================================================
 // WEB MIDI / DELUGE CONNECTION
 // ============================================================================
 
@@ -66,8 +138,10 @@ let currentSampleBrowserMode = 'sample'; // 'sample' or 'dx7'
 let originalLoadedFilepath = null; // Track the full original filepath when loading from Deluge
 let directoryCache = new Map(); // Cache directory listings for faster browsing
 let cacheTimestamp = new Map(); // Track when cache entries were created
+let connectionCheckInterval = null; // Periodic connection check
 const MAX_MESSAGES_PER_SESSION = 100;
 const CACHE_DURATION_MS = 30000; // Cache directory listings for 30 seconds
+const CONNECTION_CHECK_INTERVAL = 15000; // Check connection every 15 seconds
 
 // Deluge SYSEX manufacturer ID and commands (DEx smSysex protocol)
 const SYSEX_START = 0xF0;
@@ -162,6 +236,9 @@ async function connectToDeluge() {
             updateSavePathIndicator();
 
             showNotification('✓ Connected to Deluge - ready to send/receive files');
+            
+            // Start periodic connection monitoring (every 15 seconds)
+            startConnectionCheck();
             
             // Optional: Test connection in background (non-blocking)
             ping().then(() => {
