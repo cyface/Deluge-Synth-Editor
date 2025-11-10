@@ -22,8 +22,10 @@ Edit all essential Deluge synth parameters:
 - Interactive knobs with mouse/touch control
 - Sliders for precise parameter adjustment
 - **Live animated envelope displays** - watch ADSR in real-time
+- **Connection status icon** - visual feedback for Deluge communication (pulsing animation during transfers)
 - Tabbed interface for organized editing
 - Real-time save path indicator
+- Multiple color themes (Orange, Blue, Green, Magenta)
 
 ### 📁 **Two Workflows**
 
@@ -77,10 +79,11 @@ Direct USB transfer - no SD card removal needed!
 **Steps:**
 1. Open `index.html` in Chrome or Edge
 2. Connect Deluge via USB Port 3
-3. Click **"🔌 Connect to Deluge"**
+3. Click the **connection icon** (top left corner)
    - Grant MIDI permissions when prompted
-   - Wait for "✅ Connected" message
-4. Click **"📥 Load from Deluge"** to browse your presets
+   - Icon turns green when connected
+   - Status text shows "Connected"
+4. Click **"📤 Send to Deluge"** or **"📥 Load from Deluge"** (buttons appear when connected)
    - Navigate folders (automatically locked to `/SYNTHS/`)
    - Click any `.XML` file to load it
    - Use 📁 buttons next to OSC sample inputs to browse `/SAMPLES/`
