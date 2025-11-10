@@ -25,17 +25,9 @@ async function sendToDeluge() {
         const originalDir = originalLoadedFilepath.substring(0, originalLoadedFilepath.lastIndexOf('/') + 1);
         const originalFilename = originalLoadedFilepath.substring(originalLoadedFilepath.lastIndexOf('/') + 1);
         
-        // Check if name has changed
-        const nameChanged = originalFilename.toUpperCase() !== filename;
-        
-        if (nameChanged) {
-            // Name changed - save to root /SYNTHS/ as a new file
-            filepath = '/SYNTHS/' + filename;
-        } else {
-            // Name unchanged - save back to original location
-            filepath = originalLoadedFilepath;
-            dirPath = originalDir;
-        }
+        // Always save to the original directory (even if renamed)
+        filepath = originalDir + filename;
+        dirPath = originalDir;
     } else {
         // No original file - save to root /SYNTHS/
         filepath = '/SYNTHS/' + filename;

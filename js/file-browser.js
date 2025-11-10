@@ -19,16 +19,11 @@ function updateSavePathIndicator() {
     let filepath;
     
     if (originalLoadedFilepath) {
+        // Always save to the original directory (even if renamed)
         const originalDir = originalLoadedFilepath.substring(0, originalLoadedFilepath.lastIndexOf('/') + 1);
-        const originalFilename = originalLoadedFilepath.substring(originalLoadedFilepath.lastIndexOf('/') + 1);
-        const nameChanged = originalFilename.toUpperCase() !== filename;
-        
-        if (nameChanged) {
-            filepath = '/SYNTHS/' + filename;
-        } else {
-            filepath = originalLoadedFilepath;
-        }
+        filepath = originalDir + filename;
     } else {
+        // No original file - save to root /SYNTHS/
         filepath = '/SYNTHS/' + filename;
     }
     
