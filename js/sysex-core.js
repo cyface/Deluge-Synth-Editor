@@ -32,10 +32,12 @@ function updateConnectionIcon(state) {
 }
 
 function showCommIndicator() {
+    isActivelyTransmitting = true;
     updateConnectionIcon('active');
 }
 
 function hideCommIndicator() {
+    isActivelyTransmitting = false;
     updateConnectionIcon(delugeOutput ? 'connected' : 'disconnected');
 }
 
@@ -77,11 +79,17 @@ async function checkConnection() {
         return;
     }
     
+    // Skip check if actively transmitting
+    if (isActivelyTransmitting) {
+        console.log('Skipping connection check - actively transmitting');
+        return;
+    }
+    
     try {
         // Try to ping the Deluge with a short timeout
         await Promise.race([
             ping(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Ping timeout')), 3000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Ping timeout')), 5000))
         ]);
         // Still connected
     } catch (error) {
@@ -139,6 +147,7 @@ let originalLoadedFilepath = null; // Track the full original filepath when load
 let directoryCache = new Map(); // Cache directory listings for faster browsing
 let cacheTimestamp = new Map(); // Track when cache entries were created
 let connectionCheckInterval = null; // Periodic connection check
+let isActivelyTransmitting = false; // Flag to pause checks during operations
 const MAX_MESSAGES_PER_SESSION = 100;
 const CACHE_DURATION_MS = 30000; // Cache directory listings for 30 seconds
 const CONNECTION_CHECK_INTERVAL = 15000; // Check connection every 15 seconds
