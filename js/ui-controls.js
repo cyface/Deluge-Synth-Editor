@@ -359,12 +359,18 @@ function setupOscillatorTypeListeners() {
             const isSampleType = osc1Type.value === 'sample' || osc1Type.value === 'wavetable';
             
             // Show/hide DX7 container
-            const container = document.getElementById('osc1DX7Container');
-            if (container) {
-                container.style.display = isDX7 ? 'block' : 'none';
+            const dx7Container = document.getElementById('osc1DX7Container');
+            if (dx7Container) {
+                dx7Container.style.display = isDX7 ? 'block' : 'none';
             }
             if (isDX7) {
                 initializeDX7UI(1);
+            }
+            
+            // Show/hide file container
+            const fileContainer = document.getElementById('osc1FileContainer');
+            if (fileContainer) {
+                fileContainer.style.display = isSampleType ? 'block' : 'none';
             }
             
             // Clear sample/wavetable file if not using sample type
@@ -384,12 +390,18 @@ function setupOscillatorTypeListeners() {
             const isSampleType = osc2Type.value === 'sample' || osc2Type.value === 'wavetable';
             
             // Show/hide DX7 container
-            const container = document.getElementById('osc2DX7Container');
-            if (container) {
-                container.style.display = isDX7 ? 'block' : 'none';
+            const dx7Container = document.getElementById('osc2DX7Container');
+            if (dx7Container) {
+                dx7Container.style.display = isDX7 ? 'block' : 'none';
             }
             if (isDX7) {
                 initializeDX7UI(2);
+            }
+            
+            // Show/hide file container
+            const fileContainer = document.getElementById('osc2FileContainer');
+            if (fileContainer) {
+                fileContainer.style.display = isSampleType ? 'block' : 'none';
             }
             
             // Clear sample/wavetable file if not using sample type

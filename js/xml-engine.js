@@ -733,6 +733,19 @@ function updateUIFromState() {
             }
         }
     }
+    
+    // Show/hide file containers based on oscillator types
+    const osc1FileContainer = document.getElementById('osc1FileContainer');
+    if (osc1FileContainer) {
+        const isSample1 = currentState.osc1Type === 'sample' || currentState.osc1Type === 'wavetable';
+        osc1FileContainer.style.display = isSample1 ? 'block' : 'none';
+    }
+    
+    const osc2FileContainer = document.getElementById('osc2FileContainer');
+    if (osc2FileContainer) {
+        const isSample2 = currentState.osc2Type === 'sample' || currentState.osc2Type === 'wavetable';
+        osc2FileContainer.style.display = isSample2 ? 'block' : 'none';
+    }
 }
 
 function resetToDefault() {
