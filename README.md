@@ -30,9 +30,10 @@ Edit all essential Deluge synth parameters:
 ### 🎲 **PatchMorph - Intelligent Patch Generator**
 Generate creative, musical patches with granular control:
 - **Oscillator Morphing**: Choose Standard/Wavetable/Sample types, random pitch, volume limits
-  - Folder browser for selecting sample/wavetable sources
+  - Folder browser for selecting sample/wavetable sources (defaults to `/SAMPLES/`)
   - Recursive scanning of subfolders (3 levels deep)
-  - Filter out hidden/system files automatically
+  - Filter out hidden/system files automatically (`.DS_Store`, `._*` files)
+  - **CPU-friendly:** Maximum 1 wavetable/sample oscillator (if OSC1 is WT/Sample, OSC2 uses standard types)
 - **Synth Mode Randomization**: Subtractive, FM, or Ringmod with proper FM parameter generation
 - **Unison Settings**: Random voice count (2-4) with detune (5-20) and stereo spread
 - **Filter Morphing**: Adjustable randomization amount for LPF/HPF frequency and resonance
@@ -194,7 +195,8 @@ See [SYSEX_SETUP.md](SYSEX_SETUP.md) for detailed SYSEX troubleshooting.
 - Start with **Master Slider at 50%** for balanced randomization
 - Use **only Wavetable** checkbox for evolving pad/texture patches
 - Use **only Sample** checkbox for experimental sound design
-- **All types checked** = maximum variety and combinations
+- **All types checked** = maximum variety and combinations (CPU-safe: only 1 WT/Sample osc max)
+- Browse to `/SAMPLES/` root folder for best file discovery
 - Lower modulation depth (20-40) for subtle, usable patches
 - Higher modulation depth (70-100) for experimental/chaotic sounds
 - The folder browser scans **3 levels deep** in subdirectories automatically

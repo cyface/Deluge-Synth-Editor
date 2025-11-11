@@ -48,7 +48,7 @@ const morphSettings = {
         includeStandard: true,
         includeWavetable: false,
         includeSample: false,
-        sampleFolder: '/SAMPLES/WAVETABLES/'
+        sampleFolder: '/SAMPLES/'
     },
     filters: {
         amount: 0  // 0-100
@@ -221,8 +221,14 @@ async function morphOscillators() {
     
     currentState.oscAVolume = uiToHex(randRange(minVol, maxVol), minVol, maxVol);
     
-    // OSC2
-    currentState.osc2Type = randChoice(availableTypes);
+    // OSC2 - If OSC1 is wavetable/sample, limit OSC2 to standard types only (CPU performance)
+    let osc2Types = availableTypes;
+    if (currentState.osc1Type === 'wavetable' || currentState.osc1Type === 'sample') {
+        // OSC1 is already wavetable/sample, so OSC2 must be standard
+        osc2Types = ['sine', 'triangle', 'square', 'analogSquare', 'saw', 'analogSaw'];
+    }
+    
+    currentState.osc2Type = randChoice(osc2Types);
     
     if (morphSettings.oscillators.randomizePitch) {
         const transposeRange = Math.floor(amount * 24);
