@@ -901,6 +901,27 @@
 
         <div id="general" class="tab-content active">
             <div class="section">
+                <h2 class="section-title">Master</h2>
+                <div class="controls-grid">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Volume</label>
+                        <div class="knob" id="volumeKnob" data-param="volume" data-min="-50" data-max="50"></div>
+                        <div class="knob-value" id="volumeValue">0 dB</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Pan</label>
+                        <div class="knob" id="panKnob" data-param="pan" data-min="-25" data-max="25"></div>
+                        <div class="knob-value" id="panValue">Center</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Portamento</label>
+                        <div class="knob" id="portamentoKnob" data-param="portamento" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="portamentoValue">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
                 <h2 class="section-title">Sound Settings</h2>
                 <div class="controls-grid">
                     <div class="control-group">
@@ -1543,27 +1564,6 @@
         </div>
 
         <div id="effects" class="tab-content">
-            <div class="section">
-                <h2 class="section-title">Master</h2>
-                <div class="controls-grid">
-                    <div class="control-group knob-container">
-                        <label class="control-label">Volume</label>
-                        <div class="knob" id="volumeKnob" data-param="volume" data-min="-50" data-max="50"></div>
-                        <div class="knob-value" id="volumeValue">0 dB</div>
-                    </div>
-                    <div class="control-group knob-container">
-                        <label class="control-label">Pan</label>
-                        <div class="knob" id="panKnob" data-param="pan" data-min="-25" data-max="25"></div>
-                        <div class="knob-value" id="panValue">Center</div>
-                    </div>
-                    <div class="control-group knob-container">
-                        <label class="control-label">Portamento</label>
-                        <div class="knob" id="portamentoKnob" data-param="portamento" data-min="0" data-max="50"></div>
-                        <div class="knob-value" id="portamentoValue">0</div>
-                    </div>
-                </div>
-            </div>
-
             <div class="section">
                 <h2 class="section-title">Modulation FX</h2>
                 <div class="controls-grid">

@@ -224,7 +224,17 @@ async function morphOscillators() {
         currentState.osc1File = '';
     }
     
-    currentState.oscAVolume = uiToHex(randRange(minVol, maxVol), minVol, maxVol);
+    // Ensure at least one oscillator is at max volume for consistent loudness
+    // 80% chance OSC1 is max (primary oscillator), 20% chance OSC2 is max
+    if (Math.random() < 0.8) {
+        // OSC1 at max, OSC2 random
+        currentState.oscAVolume = uiToHex(maxVol, minVol, maxVol);
+        currentState.oscBVolume = uiToHex(randRange(minVol, maxVol), minVol, maxVol);
+    } else {
+        // OSC2 at max, OSC1 random
+        currentState.oscAVolume = uiToHex(randRange(minVol, maxVol), minVol, maxVol);
+        currentState.oscBVolume = uiToHex(maxVol, minVol, maxVol);
+    }
     
     // OSC2 - If OSC1 is wavetable/sample, limit OSC2 to standard types only (CPU performance)
     let osc2Types = availableTypes;
@@ -252,7 +262,6 @@ async function morphOscillators() {
         currentState.osc2File = '';
     }
     
-    currentState.oscBVolume = uiToHex(randRange(minVol, maxVol), minVol, maxVol);
     currentState.osc2Sync = randChoice(['0', '1']);
 }
 
