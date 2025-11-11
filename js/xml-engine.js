@@ -18,7 +18,7 @@ async function sendToDeluge() {
     
     // Determine target filepath
     let filepath;
-    let dirPath = '/SYNTHS/';
+    let dirPath;
     
     if (originalLoadedFilepath) {
         // Extract original directory path
@@ -29,32 +29,34 @@ async function sendToDeluge() {
         filepath = originalDir + filename;
         dirPath = originalDir;
     } else {
-        // No original file - save to root /SYNTHS/
-        filepath = '/SYNTHS/' + filename;
+        // No original file - use selected save directory
+        const saveDir = document.getElementById('saveDirectory').value || '/SYNTHS/';
+        filepath = saveDir + filename;
+        dirPath = saveDir;
     }
 
     try {
-        // Always check if file exists and ask for confirmation
+        // Check if file exists first (before showing modal)
         showCommIndicator();
-        showNotification('📤 Checking file...');
         const exists = await fileExists(filepath);
+        hideCommIndicator();
         
         if (exists) {
             // File exists - ask for confirmation
             const overwrite = confirm(
-                `"${filename}" already exists at ${dirPath}\n\n` +
-                `Click OK to overwrite.\n` +
+                `⚠️ "${filename}" already exists at ${dirPath}\n\n` +
+                `Click OK to OVERWRITE the existing file.\n` +
                 `Click Cancel to abort.\n\n` +
                 `Tip: Change the preset name to save as a new file.`
             );
             
             if (!overwrite) {
-                hideCommIndicator();
                 showNotification('✗ Save cancelled', true);
                 return;
             }
         }
         
+        // Now proceed with the write
         showNotification('📤 Sending to Deluge...');
         await writeFile(filepath, xml);
         
@@ -115,8 +117,8 @@ function generateXML() {
     
     xml += `\n\tmodFXType="${currentState.modFXType}"`;
     xml += `\n\tlpfMode="${currentState.lpfMode}"`;
-    if (currentState.hpfMode) xml += `\n\thpfMode="${currentState.hpfMode}"`;
-    if (currentState.filterRoute) xml += `\n\tfilterRoute="${currentState.filterRoute}"`;
+    xml += `\n\thpfMode="${currentState.hpfMode}"`;
+    xml += `\n\tfilterRoute="${currentState.filterRoute}"`;
     
     // Optional clipping amount
     if (currentState.clippingAmount && currentState.clippingAmount !== '0') {
@@ -343,17 +345,8 @@ function generateXML() {
     xml += `\n\t\tsyncLevel="7"`;
     xml += `\n\t\tsyncType="0" />\n`;
 
-    // ModKnobs - basic default set
-    xml += '\t<modKnobs>\n';
-    const defaultModKnobs = [
-        'pan', 'volumePostFX', 'lpfResonance', 'lpfFrequency',
-        'env1Release', 'env1Attack', 'delayFeedback', 'delayRate',
-        'reverbAmount', 'stutterRate'
-    ];
-    defaultModKnobs.forEach(param => {
-        xml += `\t\t<modKnob controlsParam="${param}" />\n`;
-    });
-    xml += '\t</modKnobs>\n';
+    // Don't write modKnobs - let Deluge use its default hardware knob assignments
+    // Writing them can interfere with parameter control
 
     xml += '</sound>\n';
 

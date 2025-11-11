@@ -23,11 +23,24 @@ function updateSavePathIndicator() {
         const originalDir = originalLoadedFilepath.substring(0, originalLoadedFilepath.lastIndexOf('/') + 1);
         filepath = originalDir + filename;
     } else {
-        // No original file - save to root /SYNTHS/
-        filepath = '/SYNTHS/' + filename;
+        // No original file - use selected save directory
+        const saveDir = document.getElementById('saveDirectory').value || '/SYNTHS/';
+        filepath = saveDir + filename;
     }
     
     document.getElementById('savePathText').textContent = filepath;
+    
+    // Show path indicator and browse button when connected
+    const savePathIndicator = document.getElementById('savePathIndicator');
+    const browseSaveBtn = document.getElementById('browseSaveFolder');
+    
+    if (savePathIndicator) {
+        savePathIndicator.style.display = 'block';
+    }
+    
+    if (browseSaveBtn && delugeOutput) {
+        browseSaveBtn.style.display = 'inline';
+    }
 }
 
 // Listen for preset name changes
@@ -249,6 +262,38 @@ function browseSampleForOsc(oscNum) {
 }
 
 /**
+ * Open folder browser to select save location
+ */
+async function browseSaveFolder() {
+    if (!delugeOutput) {
+        showNotification('✗ Not connected to Deluge', true);
+        return;
+    }
+    
+    // Set mode to 'savefolder'
+    currentSampleBrowserMode = 'savefolder';
+    const currentSaveDir = document.getElementById('saveDirectory').value || '/SYNTHS/';
+    currentSampleBrowserPath = currentSaveDir;
+    
+    // Show the sample browser modal
+    const modal = document.getElementById('sampleBrowserModal');
+    if (!modal) {
+        showNotification('✗ Sample browser not found', true);
+        return;
+    }
+    
+    const title = modal.querySelector('.modal-title');
+    if (title) {
+        title.textContent = 'Select Save Folder';
+    }
+    
+    modal.classList.add('show');
+    
+    // Load the directory
+    await loadSampleDirectory(currentSaveDir);
+}
+
+/**
  * Open DX7 browser for a specific oscillator (reuses sample browser)
  */
 function browseDX7ForOsc(oscNum) {
@@ -333,6 +378,28 @@ function renderSampleFileList(entries, path) {
     const fileList = document.getElementById('sampleFileList');
     fileList.innerHTML = '';
 
+    // Add "Select This Folder" button if in morphfolder or savefolder mode
+    if (currentSampleBrowserMode === 'morphfolder' || currentSampleBrowserMode === 'savefolder') {
+        const selectBtn = document.createElement('div');
+        selectBtn.className = 'file-item';
+        selectBtn.style.cssText = 'background: var(--accent-color); color: white; font-weight: bold; text-align: center; cursor: pointer; margin-bottom: 10px; padding: 15px;';
+        selectBtn.textContent = `✓ SELECT THIS FOLDER: ${path}`;
+        selectBtn.onclick = () => {
+            if (currentSampleBrowserMode === 'morphfolder') {
+                morphSettings.oscillators.sampleFolder = path;
+                document.getElementById('morphSampleFolder').value = path;
+                closeSampleBrowser();
+                showNotification(`✓ Morph folder set to: ${path}`);
+            } else if (currentSampleBrowserMode === 'savefolder') {
+                document.getElementById('saveDirectory').value = path;
+                closeSampleBrowser();
+                updateSavePathIndicator();
+                showNotification(`✓ Save folder set to: ${path}`);
+            }
+        };
+        fileList.appendChild(selectBtn);
+    }
+
     // Show parent directory if not at root
     if (path !== '/') {
         const parentItem = document.createElement('div');
@@ -385,7 +452,9 @@ function renderSampleFileList(entries, path) {
 
             if (isDir) {
                 item.onclick = () => {
-                    loadSampleDirectory(path + name + '/');
+                    const folderPath = path + name + '/';
+                    // Always navigate into folder (user will click "Select This Folder" button to choose)
+                    loadSampleDirectory(folderPath);
                 };
             } else {
                 // Check file type based on browser mode

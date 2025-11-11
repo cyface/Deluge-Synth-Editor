@@ -34,11 +34,27 @@ function updateConnectionIcon(state) {
 function showCommIndicator() {
     isActivelyTransmitting = true;
     updateConnectionIcon('active');
+    
+    // Show communication modal
+    const modal = document.getElementById('commModal');
+    const modalText = document.getElementById('commModalText');
+    if (modal) {
+        if (modalText) {
+            modalText.textContent = 'Communicating with Deluge...';
+        }
+        modal.classList.add('active');
+    }
 }
 
 function hideCommIndicator() {
     isActivelyTransmitting = false;
     updateConnectionIcon(delugeOutput ? 'connected' : 'disconnected');
+    
+    // Hide communication modal
+    const modal = document.getElementById('commModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
 }
 
 async function toggleDelugeConnection() {
@@ -49,92 +65,6 @@ async function toggleDelugeConnection() {
         // Not connected - initiate connection
         await connectToDeluge();
     }
-}
-
-// ============================================================================
-// CONNECTION MONITORING
-// ============================================================================
-
-function startConnectionCheck() {
-    // Clear any existing interval
-    if (connectionCheckInterval) {
-        clearInterval(connectionCheckInterval);
-    }
-    
-    // Wait 30 seconds before starting checks (give user time to work)
-    setTimeout(() => {
-        if (delugeOutput) {  // Only start if still connected
-            // Check connection every 15 seconds
-            connectionCheckInterval = setInterval(async () => {
-                await checkConnection();
-            }, CONNECTION_CHECK_INTERVAL);
-        }
-    }, 30000);
-}
-
-function stopConnectionCheck() {
-    if (connectionCheckInterval) {
-        clearInterval(connectionCheckInterval);
-        connectionCheckInterval = null;
-    }
-}
-
-async function checkConnection() {
-    if (!delugeOutput || !delugeInput) {
-        return;
-    }
-    
-    // Skip check if actively transmitting
-    if (isActivelyTransmitting) {
-        console.log('Skipping connection check - actively transmitting');
-        return;
-    }
-    
-    try {
-        // Try to ping the Deluge with a 10-second timeout
-        await Promise.race([
-            ping(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Ping timeout')), 10000))
-        ]);
-        // Still connected - ping succeeded
-    } catch (error) {
-        // Connection lost - only disconnect if it's a real failure
-        // (not a session negotiation timeout which can happen during heavy use)
-        if (error.message !== 'Session timeout') {
-            console.warn('Connection check failed:', error.message);
-            handleDisconnection();
-        }
-    }
-}
-
-function handleDisconnection() {
-    console.log('Deluge disconnected');
-    
-    // Stop checking
-    stopConnectionCheck();
-    
-    // Clear connection state
-    delugeOutput = null;
-    delugeInput = null;
-    currentSession = null;
-    
-    // Update UI
-    updateConnectionIcon('disconnected');
-    document.getElementById('connectionStatus').innerHTML = 'Not connected to Deluge';
-    document.getElementById('connectionStatus').style.color = '#888';
-    
-    // Hide Send/Load buttons
-    document.getElementById('sendToDelugeBtn').style.display = 'none';
-    document.getElementById('loadFromDelugeBtn').style.display = 'none';
-    
-    // Hide sample browse buttons
-    document.getElementById('osc1FileBrowse').style.display = 'none';
-    document.getElementById('osc2FileBrowse').style.display = 'none';
-    
-    // Hide save path indicator
-    document.getElementById('savePathIndicator').style.display = 'none';
-    
-    showNotification('⚠️ Deluge disconnected - click to reconnect', true);
 }
 
 // ============================================================================
@@ -154,11 +84,9 @@ let currentSampleBrowserMode = 'sample'; // 'sample' or 'dx7'
 let originalLoadedFilepath = null; // Track the full original filepath when loading from Deluge
 let directoryCache = new Map(); // Cache directory listings for faster browsing
 let cacheTimestamp = new Map(); // Track when cache entries were created
-let connectionCheckInterval = null; // Periodic connection check
-let isActivelyTransmitting = false; // Flag to pause checks during operations
+let isActivelyTransmitting = false; // Flag to track active operations
 const MAX_MESSAGES_PER_SESSION = 100;
 const CACHE_DURATION_MS = 30000; // Cache directory listings for 30 seconds
-const CONNECTION_CHECK_INTERVAL = 15000; // Check connection every 15 seconds
 
 // Deluge SYSEX manufacturer ID and commands (DEx smSysex protocol)
 const SYSEX_START = 0xF0;
@@ -248,20 +176,17 @@ async function connectToDeluge() {
             document.getElementById('osc1FileBrowse').style.display = 'inline';
             document.getElementById('osc2FileBrowse').style.display = 'inline';
             
+            // Show morph folder browse button (if wavetable/sample enabled)
+            const morphFolderBtn = document.getElementById('morphBrowseSampleFolder');
+            if (morphFolderBtn) {
+                morphFolderBtn.style.display = 'inline';
+            }
+            
             // Show and update save path indicator
             document.getElementById('savePathIndicator').style.display = 'block';
             updateSavePathIndicator();
 
             showNotification('✓ Connected to Deluge - ready to send/receive files');
-            
-            // Start periodic connection monitoring (every 15 seconds)
-            startConnectionCheck();
-            
-            // Optional: Test connection in background (non-blocking)
-            ping().then(() => {
-            }).catch((err) => {
-                console.warn('Background ping test failed (but connection is ready):', err);
-            });
         } else {
             let errorMsg = 'Could not find Deluge.\n\nAvailable MIDI devices:\n';
             for (const output of midiAccess.outputs.values()) {
@@ -676,7 +601,19 @@ async function writeFile(path, data) {
             );
             
             if (writeResp.json['^write'] && writeResp.json['^write'].err !== 0) {
-                throw new Error('Write error: ' + writeResp.json['^write'].err);
+                const errCode = writeResp.json['^write'].err;
+                let errMsg = 'Write error: ' + errCode;
+                
+                // Provide helpful error messages for common error codes
+                if (errCode === 9) {
+                    errMsg = 'Write failed: No SD card detected or SD card is write-protected. Please check your SD card and try again.';
+                } else if (errCode === 2) {
+                    errMsg = 'Write failed: File not found or permission denied.';
+                } else if (errCode === 5) {
+                    errMsg = 'Write failed: SD card is full or out of space.';
+                }
+                
+                throw new Error(errMsg);
             }
             
             offset += size;
@@ -776,7 +713,11 @@ async function listDirectory(path, forceRefresh = false) {
     
     // Fetch with pagination (Deluge has 25 entry limit per request)
     console.log('Fetching directory listing with pagination:', path);
-    showCommIndicator();
+    
+    // Only show indicator if not already active
+    if (!isActivelyTransmitting) {
+        showCommIndicator();
+    }
     
     const allEntries = [];
     let offset = 0;

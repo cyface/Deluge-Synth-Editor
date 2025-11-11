@@ -82,16 +82,16 @@ const defaultParams = {
 
     // Filters
     lpfMode: '24dB',
-    lpfFrequency: '0x7FFFFFFF',
-    lpfResonance: '0x80000000',
+    lpfFrequency: '0x00000000',  // UI 25 (middle position, audible filtering)
+    lpfResonance: '0xB3333333',  // UI 10 (some resonance so filter is audible)
     lpfMorph: '0x80000000',
 
     hpfMode: 'HPLadder',
-    hpfFrequency: '0x80000000',
-    hpfResonance: '0x80000000',
+    hpfFrequency: '0x80000000',  // UI 0 (closed, no HPF effect)
+    hpfResonance: '0x80000000',  // UI 0 (no resonance needed for closed HPF)
     hpfMorph: '0x80000000',
 
-    filterRoute: 'HPF2LPF',
+    filterRoute: 'H2L',  // HPF to LPF routing
     waveFold: '0x80000000',
 
     // LFOs (Community Firmware supports 4 LFOs total)

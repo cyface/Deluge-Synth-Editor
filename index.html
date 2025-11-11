@@ -603,9 +603,139 @@
         .deluge-connection.active + .connection-status-text {
             color: #4CAF50;
         }
+
+        /* Communication Modal */
+        .comm-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(3px);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .comm-modal.active {
+            display: flex;
+        }
+
+        .comm-modal-content {
+            background: #2a2a2a;
+            border: 3px solid var(--accent-color);
+            border-radius: 12px;
+            padding: 40px 60px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        }
+
+        .comm-modal-logo {
+            width: 100px;
+            height: 96px;
+            margin: 0 auto 20px;
+        }
+
+        .comm-modal-logo svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .comm-modal-logo rect {
+            fill: var(--accent-color);
+            animation: delugePulse 0.8s ease-in-out infinite;
+        }
+
+        /* Stagger animation delays for random pulsing effect */
+        .comm-modal-logo rect:nth-child(1) { animation-delay: 0s; }
+        .comm-modal-logo rect:nth-child(2) { animation-delay: 0.1s; }
+        .comm-modal-logo rect:nth-child(3) { animation-delay: 0.2s; }
+        .comm-modal-logo rect:nth-child(4) { animation-delay: 0.3s; }
+        .comm-modal-logo rect:nth-child(5) { animation-delay: 0.4s; }
+        .comm-modal-logo rect:nth-child(6) { animation-delay: 0.5s; }
+        .comm-modal-logo rect:nth-child(7) { animation-delay: 0.6s; }
+        .comm-modal-logo rect:nth-child(8) { animation-delay: 0.7s; }
+        .comm-modal-logo rect:nth-child(9) { animation-delay: 0.05s; }
+        .comm-modal-logo rect:nth-child(10) { animation-delay: 0.15s; }
+        .comm-modal-logo rect:nth-child(11) { animation-delay: 0.25s; }
+        .comm-modal-logo rect:nth-child(12) { animation-delay: 0.35s; }
+        .comm-modal-logo rect:nth-child(13) { animation-delay: 0.45s; }
+        .comm-modal-logo rect:nth-child(14) { animation-delay: 0.55s; }
+        .comm-modal-logo rect:nth-child(15) { animation-delay: 0.65s; }
+        .comm-modal-logo rect:nth-child(16) { animation-delay: 0.75s; }
+        .comm-modal-logo rect:nth-child(17) { animation-delay: 0.12s; }
+        .comm-modal-logo rect:nth-child(18) { animation-delay: 0.22s; }
+        .comm-modal-logo rect:nth-child(19) { animation-delay: 0.32s; }
+        .comm-modal-logo rect:nth-child(20) { animation-delay: 0.42s; }
+        .comm-modal-logo rect:nth-child(21) { animation-delay: 0.52s; }
+        .comm-modal-logo rect:nth-child(22) { animation-delay: 0.62s; }
+        .comm-modal-logo rect:nth-child(23) { animation-delay: 0.72s; }
+        .comm-modal-logo rect:nth-child(24) { animation-delay: 0.08s; }
+        .comm-modal-logo rect:nth-child(25) { animation-delay: 0.18s; }
+        .comm-modal-logo rect:nth-child(26) { animation-delay: 0.28s; }
+        .comm-modal-logo rect:nth-child(27) { animation-delay: 0.38s; }
+        .comm-modal-logo rect:nth-child(28) { animation-delay: 0.48s; }
+        .comm-modal-logo rect:nth-child(29) { animation-delay: 0.58s; }
+        .comm-modal-logo rect:nth-child(30) { animation-delay: 0.68s; }
+
+        @keyframes delugePulse {
+            0%, 100% {
+                opacity: 0.3;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
+        .comm-modal-text {
+            font-size: 18px;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 300;
+        }
     </style>
 </head>
 <body>
+    <!-- Communication Modal -->
+    <div id="commModal" class="comm-modal">
+        <div class="comm-modal-content">
+            <div class="comm-modal-logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250.09 239.52">
+                    <rect x="214.1" y="215.53" width="23.99" height="23.99"/>
+                    <rect x="19.5" y="133.01" width="23.99" height="23.99"/>
+                    <rect x="43.49" y="157" width="23.99" height="23.99"/>
+                    <rect x="67.48" y="180.99" width="23.99" height="23.99"/>
+                    <rect x="91.47" y="204.98" width="23.99" height="23.99"/>
+                    <rect y="46.25" width="23.99" height="23.99"/>
+                    <rect x="23.99" y="70.24" width="23.99" height="23.99"/>
+                    <rect x="47.98" y="94.23" width="23.99" height="23.99"/>
+                    <rect x="71.97" y="118.22" width="23.99" height="23.99"/>
+                    <rect x="19.5" width="23.99" height="23.99"/>
+                    <rect x="43.49" y="23.99" width="23.99" height="23.99"/>
+                    <rect x="67.48" y="47.98" width="23.99" height="23.99"/>
+                    <rect x="91.47" y="71.97" width="23.99" height="23.99"/>
+                    <rect x="86.4" y="2.12" width="23.99" height="23.99"/>
+                    <rect x="110.39" y="26.11" width="23.99" height="23.99"/>
+                    <rect x="134.38" y="50.1" width="23.99" height="23.99"/>
+                    <rect x="158.37" y="74.09" width="23.99" height="23.99"/>
+                    <rect x="110.8" y="160.89" width="23.99" height="23.99"/>
+                    <rect x="134.79" y="184.88" width="23.99" height="23.99"/>
+                    <rect x="158.78" y="208.87" width="23.99" height="23.99"/>
+                    <rect x="178.12" y="110.76" width="23.99" height="23.99"/>
+                    <rect x="202.11" y="134.75" width="23.99" height="23.99"/>
+                    <rect x="226.1" y="158.74" width="23.99" height="23.99"/>
+                    <rect x="111.8" y="109.91" width="23.99" height="23.99"/>
+                    <rect x="135.79" y="133.9" width="23.99" height="23.99"/>
+                    <rect x="159.78" y="157.89" width="23.99" height="23.99"/>
+                </svg>
+            </div>
+            <div id="commModalText" class="comm-modal-text">Communicating with Deluge...</div>
+        </div>
+    </div>
+    
     <!-- Deluge Connection -->
     <div class="deluge-connection-wrapper" onclick="toggleDelugeConnection()" style="cursor: pointer;">
         <div id="delugeConnection" class="deluge-connection disconnected" title="Click to connect to Deluge">
@@ -652,7 +782,11 @@
                    style="width: 100%; text-align: center; font-size: 18px; font-weight: bold;">
             <div id="savePathIndicator" style="display: none; text-align: center; font-size: 12px; color: #888; font-family: monospace; margin-top: 5px;">
                 💾 Will save to: <span id="savePathText">/SYNTHS/MY SYNTH.XML</span>
+                <button id="browseSaveFolder" onclick="browseSaveFolder()" style="padding: 2px 8px; margin-left: 8px; font-size: 11px; display: none;" title="Browse save location">
+                    📁 Browse
+                </button>
             </div>
+            <input type="hidden" id="saveDirectory" value="/SYNTHS/">
         </div>
 
         <!-- Connection Status -->
@@ -676,7 +810,6 @@
             
             <!-- Row 3: Preset Tools -->
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button onclick="randomizePreset()">🎲 Randomize</button>
                 <button onclick="resetToDefault()">🔄 Reset to Default</button>
             </div>
         </div>
@@ -689,6 +822,7 @@
             <div class="tab" onclick="showTab('lfos')">LFOs</div>
             <div class="tab" onclick="showTab('effects')">Effects</div>
             <div class="tab" onclick="showTab('modulation')">Modulation</div>
+            <div class="tab" onclick="showTab('patchmorph')">PatchMorph</div>
         </div>
 
         <div id="general" class="tab-content active">
@@ -1533,6 +1667,179 @@
             </div>
         </div>
 
+        <div id="patchmorph" class="tab-content">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h2 class="section-title" style="border: none;">🎲 PatchMorph - Intelligent Randomization</h2>
+                <p style="color: #888; font-size: 0.9em; margin-top: 10px;">
+                    Create evolving patches with controlled randomization. Adjust sliders to shape the character of your sound.
+                </p>
+            </div>
+
+            <!-- Master Controls -->
+            <div class="section" style="background: #2a2a2a; padding: 20px; border-radius: 8px; border: 2px solid var(--accent-color);">
+                <h2 class="section-title" style="border: none; color: var(--accent-color); margin-bottom: 20px;">Master Controls</h2>
+                
+                <!-- Generate Random Name Checkbox -->
+                <div style="margin-bottom: 20px;">
+                    <label class="control-label" style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="morphGenerateName" checked>
+                        <span>Generate Random Name</span>
+                    </label>
+                    <div style="margin-top: 5px; margin-left: 30px; font-size: 0.85em; color: #888;">
+                        Uncheck to keep current name (useful for iterating variations on same preset)
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px;">
+                        <label class="control-label">Master Randomization Amount</label>
+                        <input type="range" id="morphMasterAmount" min="0" max="100" value="0" 
+                               style="width: 100%;">
+                        <div class="slider-value" id="morphMasterAmountValue" style="text-align: center; margin-top: 5px; font-size: 1.1em; color: var(--accent-color);">
+                            0 - All Off
+                        </div>
+                        <div style="margin-top: 8px; font-size: 0.85em; color: #888; text-align: center;">
+                            Sets all sliders at once: 0=Subtle → 100=Extreme
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button onclick="executePatchMorph()" style="padding: 12px 30px; font-size: 16px;">
+                            🎲 MORPH PATCH
+                        </button>
+                        <button onclick="resetMorphSliders()" style="padding: 10px 20px;">
+                            🔄 Reset All to 0
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">1. Oscillators</h2>
+                
+                <!-- Oscillator Type Selection -->
+                <div style="margin-bottom: 15px;">
+                    <label class="control-label" style="margin-bottom: 10px; display: block;">Include Oscillator Types:</label>
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="morphOscStandard" checked>
+                            <span>Standard (Sine, Saw, Square, etc.)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="morphOscWavetable">
+                            <span>Wavetable</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="morphOscSample">
+                            <span>Sample</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Sample/Wavetable Folder Selection -->
+                <div id="morphSampleFolderSection" style="margin-bottom: 15px; padding: 15px; background: #2a2a2a; border-radius: 5px; display: none;">
+                    <label class="control-label">Sample/Wavetable Source Folder:</label>
+                    <div style="display: flex; gap: 5px; margin-top: 8px;">
+                        <input type="text" id="morphSampleFolder" readonly placeholder="/SAMPLES/WAVETABLES/" 
+                               style="flex: 1; background: #1a1a1a; cursor: pointer;" 
+                               value="/SAMPLES/WAVETABLES/">
+                        <button id="morphBrowseSampleFolder" onclick="browseMorphFolder()" style="padding: 5px 15px; display: none;" title="Browse folders on Deluge">
+                            📁 Browse
+                        </button>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 0.85em; color: #888;">
+                        Random files will be selected from this folder and its subfolders
+                    </div>
+                    <div id="morphSelectedFiles" style="margin-top: 8px; font-size: 0.85em; color: var(--accent-color); font-weight: bold; display: none;">
+                        <!-- Selected files will be displayed here -->
+                    </div>
+                </div>
+                
+                <!-- Pitch Randomization -->
+                <div class="control-group">
+                    <label class="control-label">
+                        <input type="checkbox" id="morphOscPitch" style="margin-right: 8px;">
+                        Randomize Pitch
+                    </label>
+                </div>
+                
+                <!-- Variation Amount -->
+                <div class="control-group" style="margin-top: 15px;">
+                    <label class="control-label">Variation Amount</label>
+                    <input type="range" id="morphOscAmount" min="0" max="100" value="0">
+                    <div class="slider-value" id="morphOscAmountValue">0</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">2. Filters</h2>
+                <div class="control-group">
+                    <label class="control-label">Randomization Amount</label>
+                    <input type="range" id="morphFilterAmount" min="0" max="100" value="0">
+                    <div class="slider-value" id="morphFilterAmountValue">0</div>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: #2a2a2a; border-radius: 5px; font-size: 0.85em; color: #888;">
+                    Controls filter frequency and resonance variation
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">3. Envelopes</h2>
+                <div class="control-group">
+                    <label class="control-label">Envelope Length</label>
+                    <input type="range" id="morphEnvLength" min="0" max="100" value="0">
+                    <div class="slider-value" id="morphEnvLengthValue">Very Short</div>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: #2a2a2a; border-radius: 5px; font-size: 0.85em; color: #888;">
+                    <strong>Left:</strong> Short/fast (plucks, percussion) &nbsp;|&nbsp; <strong>Right:</strong> Long/slow (pads, ambient)
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">4. Effects</h2>
+                <div class="control-group">
+                    <label class="control-label">FX Amount</label>
+                    <input type="range" id="morphFXAmount" min="0" max="100" value="0">
+                    <div class="slider-value" id="morphFXAmountValue">Minimal</div>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: #2a2a2a; border-radius: 5px; font-size: 0.85em; color: #888;">
+                    <strong>Includes:</strong> ModFX, Delay (capped at +80 for safety), Reverb
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">5. Modulation</h2>
+                <div class="control-group">
+                    <label class="control-label">Modulation Depth</label>
+                    <input type="range" id="morphModDepth" min="0" max="100" value="0">
+                    <div class="slider-value" id="morphModDepthValue">Subtle</div>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: #2a2a2a; border-radius: 5px; font-size: 0.85em; color: #888;">
+                    Generates random patch cables. Higher values create stronger modulation amounts.
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 40px;">
+                <button onclick="executePatchMorph()" style="font-size: 18px; padding: 15px 40px;">
+                    🎲 MORPH PATCH
+                </button>
+            </div>
+
+            <div style="margin-top: 30px; padding: 20px; background: #2a2a2a; border-radius: 8px; border-left: 4px solid var(--accent-color);">
+                <h3 style="color: var(--accent-color); margin-bottom: 10px;">Safety Limits</h3>
+                <ul style="color: #888; font-size: 0.9em; line-height: 1.8;">
+                    <li>OSC volumes: -50 to +40 dB (prevents clipping)</li>
+                    <li>Delay feedback: max +25 (prevents runaway feedback)</li>
+                    <li>All FX: max +80 (safe levels)</li>
+                    <li>Long envelopes: max 80 (prevents extremely long tails)</li>
+                    <li>Standard OSCs only by default (DX7/sample require manual selection)</li>
+                    <li>Sample/Wavetable: auto-selected from chosen folder + subfolders</li>
+                </ul>
+                <div style="margin-top: 15px; font-size: 0.85em; color: #666;">
+                    <em>Tip: Limits are configurable in js/patchmorph.js (MORPH_LIMITS object)</em>
+                </div>
+            </div>
+        </div>
+
         <input type="file" id="xmlFileInput" style="display:none" accept=".xml,.XML">
         <textarea id="xmlOutput" style="display:none"></textarea>
     </div>
@@ -1588,6 +1895,7 @@
     <script src="js/file-browser.js"></script>
     <script src="js/ui-controls.js"></script>
     <script src="js/dx7.js"></script>
+    <script src="js/patchmorph.js"></script>
     
     <!-- App: Initialization (uses everything) -->
     <script src="js/app.js"></script>
