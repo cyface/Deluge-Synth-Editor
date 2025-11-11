@@ -366,7 +366,6 @@ async function loadSampleDirectory(path, forceRefresh = false) {
  * Refresh sample directory
  */
 function refreshSampleDirectory() {
-    showNotification('🔄 Refreshing samples...');
     loadSampleDirectory(currentSampleBrowserPath, true);
 }
 
@@ -427,7 +426,10 @@ function renderSampleFileList(entries, path) {
     });
 
     if (entries.length === 0) {
-        fileList.innerHTML = '<div class="loading">Empty directory</div>';
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = 'loading';
+        emptyMsg.textContent = 'Empty directory';
+        fileList.appendChild(emptyMsg);
         return;
     }
 
