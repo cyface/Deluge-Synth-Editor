@@ -445,6 +445,7 @@ async function selectRandomFile(oscNum, folderPath) {
     // If not connected to Deluge, can't browse files
     if (!delugeOutput) {
         console.warn('Cannot select random file - not connected to Deluge');
+        currentState[`osc${oscNum}File`] = '';
         return;
     }
     
@@ -455,8 +456,17 @@ async function selectRandomFile(oscNum, folderPath) {
         // Select random file
         if (wavFiles.length > 0) {
             currentState[`osc${oscNum}File`] = randChoice(wavFiles);
+            console.log(`Selected random file for OSC${oscNum}:`, currentState[`osc${oscNum}File`]);
         } else {
+            console.warn(`No .wav files found in ${folderPath} for OSC${oscNum}`);
             currentState[`osc${oscNum}File`] = '';
+            
+            // Show warning to user (only once per morph)
+            if (oscNum === 1 && !window._morphFileWarningShown) {
+                showNotification(`⚠️ No .wav files found in ${folderPath}. Sample/Wavetable patches will have empty file paths.`, true);
+                window._morphFileWarningShown = true;
+                setTimeout(() => { window._morphFileWarningShown = false; }, 5000);
+            }
         }
     } catch (error) {
         console.error('Error selecting random file:', error);
@@ -470,11 +480,13 @@ async function collectWavFiles(folderPath, maxDepth = 3, currentDepth = 0) {
     if (currentDepth >= maxDepth) return wavFiles;
     
     try {
+        console.log(`Scanning folder (depth ${currentDepth}):`, folderPath);
         const entries = await listDirectory(folderPath);
         
         // Get .wav files in current directory, excluding hidden/system files
-        entries.filter(e => {
-            if (e.dir) return false; // Not a file
+        const validFiles = entries.filter(e => {
+            const isDir = (e.attr & 0x10) !== 0; // Check attr field: bit 4 (0x10) = directory
+            if (isDir) return false; // Not a file
             if (!e.name.toLowerCase().endsWith('.wav')) return false; // Not a .wav file
             
             // Filter out hidden/system files
@@ -483,10 +495,15 @@ async function collectWavFiles(folderPath, maxDepth = 3, currentDepth = 0) {
             if (e.name.toLowerCase() === 'desktop.ini') return false; // Windows system file
             
             return true;
-        }).forEach(f => wavFiles.push(folderPath + f.name));
+        });
+        
+        console.log(`  Found ${validFiles.length} valid .wav files in ${folderPath}`);
+        validFiles.forEach(f => wavFiles.push(folderPath + f.name));
         
         // Recursively get files from subdirectories
-        const subdirs = entries.filter(e => e.dir);
+        const subdirs = entries.filter(e => (e.attr & 0x10) !== 0);
+        console.log(`  Found ${subdirs.length} subdirectories to scan`);
+        
         for (const dir of subdirs) {
             const subPath = folderPath + dir.name + '/';
             const subFiles = await collectWavFiles(subPath, maxDepth, currentDepth + 1);
@@ -496,6 +513,7 @@ async function collectWavFiles(folderPath, maxDepth = 3, currentDepth = 0) {
         console.warn('Could not read folder:', folderPath, err);
     }
     
+    console.log(`Total files collected from ${folderPath}:`, wavFiles.length);
     return wavFiles;
 }
 
