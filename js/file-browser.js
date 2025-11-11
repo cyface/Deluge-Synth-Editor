@@ -92,6 +92,48 @@ function refreshDirectory() {
 }
 
 /**
+ * Create a new folder in the current directory
+ */
+async function createNewFolder() {
+    const folderName = prompt('Enter new folder name:');
+    if (!folderName) return;
+    
+    // Clean folder name (remove invalid characters)
+    const cleanName = folderName.replace(/[\/\\:*?"<>|]/g, '_').toUpperCase();
+    const newFolderPath = currentBrowserPath + cleanName + '/';
+    
+    try {
+        await createFolder(newFolderPath);
+        showNotification(`✓ Folder created: ${cleanName}`);
+        // Refresh directory to show new folder
+        loadDirectory(currentBrowserPath, true);
+    } catch (error) {
+        showNotification(`✗ Failed to create folder: ${error.message}`, true);
+    }
+}
+
+/**
+ * Create a new folder in the sample browser
+ */
+async function createNewFolderInSampleBrowser() {
+    const folderName = prompt('Enter new folder name:');
+    if (!folderName) return;
+    
+    // Clean folder name (remove invalid characters)
+    const cleanName = folderName.replace(/[\/\\:*?"<>|]/g, '_').toUpperCase();
+    const newFolderPath = currentSampleBrowserPath + cleanName + '/';
+    
+    try {
+        await createFolder(newFolderPath);
+        showNotification(`✓ Folder created: ${cleanName}`);
+        // Refresh directory to show new folder
+        loadSampleDirectory(currentSampleBrowserPath, true);
+    } catch (error) {
+        showNotification(`✗ Failed to create folder: ${error.message}`, true);
+    }
+}
+
+/**
  * Filter out system/hidden files (Mac & Windows)
  */
 function filterSystemFiles(entries) {

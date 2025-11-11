@@ -1931,7 +1931,10 @@
                 <div id="currentPath" style="color: #888; font-family: monospace; flex: 1;">
                     /SYNTHS/
                 </div>
-                <button onclick="refreshDirectory()" style="padding: 5px 10px; font-size: 14px;" title="Refresh directory listing">🔄 Refresh</button>
+                <div style="display: flex; gap: 5px;">
+                    <button onclick="createNewFolder()" style="padding: 5px 10px; font-size: 14px;" title="Create new folder">📁 New Folder</button>
+                    <button onclick="refreshDirectory()" style="padding: 5px 10px; font-size: 14px;" title="Refresh directory listing">🔄 Refresh</button>
+                </div>
             </div>
             <div id="fileList" class="file-list">
                 <div class="loading">Loading, can take a while on first go...</div>
@@ -1950,7 +1953,10 @@
                 <div id="sampleCurrentPath" style="color: #888; font-family: monospace; flex: 1;">
                     /SAMPLES/
                 </div>
-                <button onclick="refreshSampleDirectory()" style="padding: 5px 10px; font-size: 14px;" title="Refresh directory listing">🔄 Refresh</button>
+                <div style="display: flex; gap: 5px;">
+                    <button onclick="createNewFolderInSampleBrowser()" style="padding: 5px 10px; font-size: 14px;" title="Create new folder">📁 New Folder</button>
+                    <button onclick="refreshSampleDirectory()" style="padding: 5px 10px; font-size: 14px;" title="Refresh directory listing">🔄 Refresh</button>
+                </div>
             </div>
             <div id="sampleFileList" class="file-list">
                 <div class="loading">Loading, can take a while on first go...</div>

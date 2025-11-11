@@ -804,3 +804,32 @@ async function fileExists(filepath) {
     }
 }
 
+/**
+ * Create a folder on Deluge (if supported by firmware)
+ */
+async function createFolder(path) {
+    try {
+        showCommIndicator();
+        console.log('Creating folder:', path);
+        
+        const response = await sendJson({ mkdir: { path } });
+        
+        hideCommIndicator();
+        
+        if (response.json['^mkdir']) {
+            if (response.json['^mkdir'].err === 0) {
+                console.log('Folder created successfully:', path);
+                clearDirectoryCache(); // Clear cache to refresh listings
+                return { success: true };
+            } else {
+                throw new Error('mkdir error: ' + response.json['^mkdir'].err);
+            }
+        }
+        
+        throw new Error('Invalid mkdir response');
+    } catch (error) {
+        hideCommIndicator();
+        console.error('Error creating folder:', error);
+        throw error;
+    }
+}
