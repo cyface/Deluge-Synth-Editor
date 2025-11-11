@@ -22,10 +22,30 @@ Edit all essential Deluge synth parameters:
 - Interactive knobs with mouse/touch control
 - Sliders for precise parameter adjustment
 - **Live animated envelope displays** - watch ADSR in real-time
-- **Connection status icon** - visual feedback for Deluge communication (pulsing animation during transfers)
+- **Connection status icon** - visual feedback for Deluge communication (animated Deluge logo during transfers)
 - Tabbed interface for organized editing
 - Real-time save path indicator
 - Multiple color themes (Orange, Blue, Green, Magenta)
+
+### 🎲 **PatchMorph - Intelligent Patch Generator**
+Generate creative, musical patches with granular control:
+- **Oscillator Morphing**: Choose Standard/Wavetable/Sample types, random pitch, volume limits
+  - Folder browser for selecting sample/wavetable sources
+  - Recursive scanning of subfolders (3 levels deep)
+  - Filter out hidden/system files automatically
+- **Synth Mode Randomization**: Subtractive, FM, or Ringmod with proper FM parameter generation
+- **Unison Settings**: Random voice count (2-4) with detune (5-20) and stereo spread
+- **Filter Morphing**: Adjustable randomization amount for LPF/HPF frequency and resonance
+- **Envelope Morphing**: Slider controls length from short/punchy to long/pad-like
+- **FX Morphing**: Randomize ModFX, Delay, Reverb with safety limits
+- **Modulation Matrix**: Generate 2-8 random patch cables with priority modulations
+  - 70% chance: LFO → lpfFrequency (auto-wah/wobble)
+  - 50% chance: Envelope → lpfFrequency (filter envelope)
+  - 80% chance: LFO/ENV → wavetable position (when using wavetables)
+  - Modulation amounts limited to ±30 for musical results
+- **Master Controls**: Set all sliders at once with non-linear morphing curve
+- **Smart Naming**: Auto-generate descriptive names (e.g., "FM SAWTRI Bass 42", "WVT Shimmer 67")
+- **Safety Limits**: OSC volumes capped at +40dB, delay feedback at 25, FX at 80
 
 ### 📁 **Two Workflows**
 
@@ -98,6 +118,110 @@ Direct USB transfer - no SD card removal needed!
 
 See [SYSEX_SETUP.md](SYSEX_SETUP.md) for detailed SYSEX troubleshooting.
 
+## User Guide
+
+### Getting Started
+1. **Choose Your Workflow:**
+   - **Offline:** Load/edit/download XML files (works with any firmware)
+   - **Live:** Connect Deluge via USB for instant transfers (requires Community FW 1.3+ or Official FW 4.0+)
+
+2. **Connection (Live Mode):**
+   - Click the connection icon (top left)
+   - Grant MIDI permissions when prompted
+   - Icon turns green with "Connected" status
+   - Animated logo pulses during file transfers
+
+3. **Select Theme:**
+   - Click colored circles (top right) to change accent colors
+   - Choose: Orange, Blue, Green, or Magenta
+
+### Editing Patches
+
+**Load a Patch:**
+- **From Deluge:** Click "📥 Load from Deluge" → browse folders → select file
+- **From Computer:** Click "📄 Load XML" → select file from your computer
+- **Default Patch:** Click "🔄 Default Patch" for a clean starting point
+
+**Edit Parameters:**
+- **Knobs:** Click and drag vertically (mouse or touch)
+- **Dropdowns:** Select oscillator types, filter modes, effects
+- **Sliders:** Adjust modulation amounts
+- **Envelopes:** Watch real-time animation as you edit
+- **Patch Cables:** Add/remove modulation routings in Modulation tab
+
+**Save Your Work:**
+- **Preset Name:** Enter a name at the top (auto-uppercase in filename)
+- **Save Location:** Browse button lets you choose save folder (defaults to `/SYNTHS/`)
+- **Path Indicator:** Shows exactly where file will be saved
+- **To Deluge:** Click "📤 Send to Deluge" (asks confirmation if file exists)
+- **To Computer:** Click "💾 Download XML" for offline transfer
+
+### Using PatchMorph
+
+**PatchMorph** generates random, musical patches based on your settings:
+
+**1. Configure Oscillators:**
+   - Check boxes: **Standard** (basic waveforms), **Wavetable**, and/or **Sample**
+   - **Amount Slider:** 0 = no change, 100 = extreme variation
+   - **Pitch:** Check to randomize transpose/detune (off by default)
+   - **Sample/Wavetable Folder:** Click 📁 Browse to select source folder for random files
+   - Automatically randomizes synth mode (Subtractive/FM/Ringmod) and unison
+
+**2. Set Morphing Amounts:**
+   - **Filters (0-100):** How much to randomize LPF/HPF frequency and resonance
+   - **Envelopes (0-100):** Short/fast (0) to Long/pad-like (100)
+   - **FX (0-100):** Minimal effects (0) to Heavy processing (100)
+   - **Modulation Depth (0-100):** Subtle (0) to Extreme (100) patch cable amounts
+
+**3. Master Controls:**
+   - **Master Slider:** Sets all sliders at once (0=Subtle → 100=Extreme) with organic variation
+   - **Reset All to 0:** Quick reset of all morphing amounts
+   - **🎲 MORPH PATCH:** Execute the morphing (available at top and bottom)
+
+**4. Optional Settings:**
+   - **Generate Random Name:** Auto-creates descriptive names (e.g., "RING SAW Storm 34")
+     - Shows synth mode (FM, RING, or blank for subtractive)
+     - Shows oscillator types (SAW, TRI, SQU, WVT, SMP)
+     - Adds creative suffix and number
+
+**5. Results:**
+   - Patch is morphed in place (overwrites current state)
+   - Selected files shown: "🎵 OSC1: filename.wav | OSC2: filename2.wav"
+   - Save path updates if name changed
+   - Click "📤 Send to Deluge" to save
+
+**Tips for PatchMorph:**
+- Start with **Master Slider at 50%** for balanced randomization
+- Use **only Wavetable** checkbox for evolving pad/texture patches
+- Use **only Sample** checkbox for experimental sound design
+- **All types checked** = maximum variety and combinations
+- Lower modulation depth (20-40) for subtle, usable patches
+- Higher modulation depth (70-100) for experimental/chaotic sounds
+- The folder browser scans **3 levels deep** in subdirectories automatically
+
+### Troubleshooting
+
+**Filters not working?**
+- Make sure `filterRoute` is set (should be "H2L" by default)
+- Check filter resonance isn't at 0 (defaults to 10 now)
+- Watch for patch cables modulating filter frequency
+
+**No sample/wavetable files found?**
+- Check browser console (F12) for folder scanning logs
+- Ensure folder exists on SD card
+- Verify .wav files aren't hidden (starting with `.` or `._`)
+- Try browsing to `/SAMPLES/` root folder
+
+**SYSEX not working?**
+- Use Chrome or Edge browser (best Web MIDI support)
+- Connect to **Port 3** (rightmost USB port on Deluge)
+- Ensure firmware is Community 1.3+ or Official 4.0+
+- Check SD card is inserted for file operations
+
+**Preset sounds different on Deluge?**
+- After sending, manually reload patch on Deluge: `SHIFT + LOAD` → select file
+- Deluge doesn't auto-refresh - you must reload to hear changes
+
 ## Editor Tabs
 
 - **General**: Polyphonic mode, voice priority, synth mode, unison, max voices
@@ -107,6 +231,7 @@ See [SYSEX_SETUP.md](SYSEX_SETUP.md) for detailed SYSEX troubleshooting.
 - **LFOs**: LFO1-2 with type, rate, and sync options
 - **Effects**: Master volume/pan, ModFX, delay, reverb, EQ, distortion, sidechain
 - **Modulation**: Patch cable matrix - route any source to any destination
+- **PatchMorph**: Intelligent patch randomization with oscillator type selection, filter/envelope/FX/modulation controls, master slider, and smart naming
 
 ## Supported Parameters
 

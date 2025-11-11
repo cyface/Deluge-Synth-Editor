@@ -87,8 +87,8 @@ const defaultParams = {
     lpfMorph: '0x80000000',
 
     hpfMode: 'HPLadder',
-    hpfFrequency: '0x80000000',  // UI 0 (closed, no HPF effect)
-    hpfResonance: '0x80000000',  // UI 0 (no resonance needed for closed HPF)
+    hpfFrequency: '0x80000000',  // UI 0 (closed, no HPF effect by default)
+    hpfResonance: '0xB3333333',  // UI 10 (some resonance for audible filtering)
     hpfMorph: '0x80000000',
 
     filterRoute: 'H2L',  // HPF to LPF routing
