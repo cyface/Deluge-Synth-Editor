@@ -207,9 +207,14 @@ async function morphOscillators() {
     currentState.osc1Type = randChoice(availableTypes);
     
     if (morphSettings.oscillators.randomizePitch) {
+        // Full pitch randomization
         const transposeRange = Math.floor(amount * 24);
         currentState.osc1Transpose = randInt(-transposeRange, transposeRange).toString();
         currentState.osc1Cents = randInt(-50, 50).toString();
+    } else {
+        // Constrained to octave jumps (0, +12, -12) with subtle detuning
+        currentState.osc1Transpose = randChoice(['0', '12', '-12']);
+        currentState.osc1Cents = randInt(-6, 6).toString();
     }
     
     // Handle sample/wavetable file selection
@@ -231,9 +236,14 @@ async function morphOscillators() {
     currentState.osc2Type = randChoice(osc2Types);
     
     if (morphSettings.oscillators.randomizePitch) {
+        // Full pitch randomization
         const transposeRange = Math.floor(amount * 24);
         currentState.osc2Transpose = randInt(-transposeRange, transposeRange).toString();
         currentState.osc2Cents = randInt(-50, 50).toString();
+    } else {
+        // Constrained to octave jumps (0, +12, -12) with subtle detuning
+        currentState.osc2Transpose = randChoice(['0', '12', '-12']);
+        currentState.osc2Cents = randInt(-6, 6).toString();
     }
     
     if (currentState.osc2Type === 'wavetable' || currentState.osc2Type === 'sample') {
