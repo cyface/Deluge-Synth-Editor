@@ -26,19 +26,23 @@ Edit all essential Deluge synth parameters:
 - Tabbed interface for organized editing
 - Real-time save path indicator
 - Multiple color themes (Orange, Blue, Green, Magenta)
+- PayPal donation button for supporting development
+- **Mobile responsive** - works on phones and tablets
 
 ### 🎲 **PatchMorph - Intelligent Patch Generator**
 Generate creative, musical patches with granular control:
-- **Oscillator Morphing**: Choose Standard/Wavetable/Sample types, random pitch, volume limits
+- **Oscillator Morphing**: Choose Standard/Wavetable/Sample types with intelligent volume balancing
   - Folder browser for selecting sample/wavetable sources (defaults to `/SAMPLES/`)
   - Recursive scanning of subfolders (3 levels deep)
   - Filter out hidden/system files automatically (`.DS_Store`, `._*` files)
   - **CPU-friendly:** Maximum 1 wavetable/sample oscillator (if OSC1 is WT/Sample, OSC2 uses standard types)
+  - **Volume consistency:** 80% chance OSC1 at max volume, 20% OSC2 at max (ensures audible patches)
+  - **Pitch variation:** When unchecked, uses octave jumps (0, ±12) with subtle detuning (±6 cents)
 - **Synth Mode Randomization**: Subtractive, FM, or Ringmod with proper FM parameter generation
 - **Unison Settings**: Random voice count (2-4) with detune (5-20) and stereo spread
-- **Filter Morphing**: Adjustable randomization amount for LPF/HPF frequency and resonance
-- **Envelope Morphing**: Slider controls length from short/punchy to long/pad-like
-- **FX Morphing**: Randomize ModFX, Delay, Reverb with safety limits
+- **Filter Morphing**: Adjustable randomization amount for LPF/HPF frequency and resonance (morphs from current)
+- **Envelope Setting**: Slider DIRECTLY SETS envelope times (0=short/punchy 0-20ms, 100=long/pad 30-80ms)
+- **FX Setting**: Slider DIRECTLY SETS effect levels (0=off, 100=full wet up to safety limits)
 - **Modulation Matrix**: Generate 2-8 random patch cables with priority modulations
   - 70% chance: LFO → lpfFrequency (auto-wah/wobble)
   - 50% chance: Envelope → lpfFrequency (filter envelope)
@@ -61,6 +65,7 @@ Generate creative, musical patches with granular control:
 - Browse and load presets directly from Deluge
 - Send edited presets back instantly
 - Browse and select sample files from `/SAMPLES/`
+- **Create folders** on Deluge SD card (organize presets/samples)
 - **Load DX7 patches from Deluge** (browse .syx files, select from cartridges)
 - Preserves directory structure
 - Overwrite protection with confirmation dialogs
@@ -153,6 +158,7 @@ See [SYSEX_SETUP.md](SYSEX_SETUP.md) for detailed SYSEX troubleshooting.
 **Save Your Work:**
 - **Preset Name:** Enter a name at the top (auto-uppercase in filename)
 - **Save Location:** Browse button lets you choose save folder (defaults to `/SYNTHS/`)
+- **Create Folders:** Click "📁 New Folder" in any browser to organize presets (e.g., `/SYNTHS/BASS/`)
 - **Path Indicator:** Shows exactly where file will be saved
 - **To Deluge:** Click "📤 Send to Deluge" (asks confirmation if file exists)
 - **To Computer:** Click "💾 Download XML" for offline transfer
@@ -169,9 +175,9 @@ See [SYSEX_SETUP.md](SYSEX_SETUP.md) for detailed SYSEX troubleshooting.
    - Automatically randomizes synth mode (Subtractive/FM/Ringmod) and unison
 
 **2. Set Morphing Amounts:**
-   - **Filters (0-100):** How much to randomize LPF/HPF frequency and resonance
-   - **Envelopes (0-100):** Short/fast (0) to Long/pad-like (100)
-   - **FX (0-100):** Minimal effects (0) to Heavy processing (100)
+   - **Filters (0-100):** How much to randomize LPF/HPF frequency and resonance (morphs from current)
+   - **Envelopes (0-100):** DIRECTLY SETS envelope times - Short/fast (0) to Long/pad-like (100)
+   - **FX (0-100):** DIRECTLY SETS effect levels - Off (0) to Full wet (100)
    - **Modulation Depth (0-100):** Subtle (0) to Extreme (100) patch cable amounts
 
 **3. Master Controls:**
@@ -193,13 +199,17 @@ See [SYSEX_SETUP.md](SYSEX_SETUP.md) for detailed SYSEX troubleshooting.
 
 **Tips for PatchMorph:**
 - Start with **Master Slider at 50%** for balanced randomization
+- **Envelope/FX sliders SET values directly** (not morphed) - reliable control regardless of loaded patch
+- **Filter/Oscillator sliders MORPH from current** - adds variation while keeping some character
 - Use **only Wavetable** checkbox for evolving pad/texture patches
 - Use **only Sample** checkbox for experimental sound design
 - **All types checked** = maximum variety and combinations (CPU-safe: only 1 WT/Sample osc max)
+- **Octave variation:** Pitch unchecked = octave jumps (0, ±12) with ±6 cent detuning for analog warmth
 - Browse to `/SAMPLES/` root folder for best file discovery
 - Lower modulation depth (20-40) for subtle, usable patches
 - Higher modulation depth (70-100) for experimental/chaotic sounds
 - The folder browser scans **3 levels deep** in subdirectories automatically
+- **Create folders** with "📁 New Folder" button to organize your library
 
 ### Troubleshooting
 
