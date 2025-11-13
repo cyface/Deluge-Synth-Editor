@@ -296,33 +296,34 @@ function morphFilters() {
 function morphEnvelopes() {
     const length = morphSettings.envelopes.length / 100; // 0=short, 1=long
     
-    // Skip if length is 0
-    if (length === 0) return;
-    
+    // DIRECTLY SET envelope times based on slider (don't morph from current values)
     // Interpolate between short and long settings
+    // At 0: short/punchy (0-20), At 100: long/pad (30-80)
     const attackMin = MORPH_LIMITS.ENV_SHORT_MIN + (length * (MORPH_LIMITS.ENV_LONG_MIN - MORPH_LIMITS.ENV_SHORT_MIN));
     const attackMax = MORPH_LIMITS.ENV_SHORT_MAX + (length * (MORPH_LIMITS.ENV_LONG_MAX - MORPH_LIMITS.ENV_SHORT_MAX));
+    const decayMin = attackMin;
+    const decayMax = attackMax;
     const releaseMin = attackMin;
     const releaseMax = attackMax;
     
-    // ENV1 (amplitude)
+    // ENV1 (amplitude) - slider directly sets the time range
     currentState.env1Attack = uiToHex(randRange(attackMin, attackMax), 0, 50);
-    currentState.env1Decay = uiToHex(randRange(0, 40), 0, 50);
+    currentState.env1Decay = uiToHex(randRange(decayMin, decayMax), 0, 50);
     currentState.env1Sustain = uiToHex(randRange(20, 50), 0, 50);
     currentState.env1Release = uiToHex(randRange(releaseMin, releaseMax), 0, 50);
     
-    // ENV2 (modulation)
-    currentState.env2Attack = uiToHex(randRange(attackMin * 0.8, attackMax * 0.8), -25, 25);
-    currentState.env2Decay = uiToHex(randRange(-10, 20), -25, 25);
+    // ENV2 (modulation) - slightly shorter for modulation
+    currentState.env2Attack = uiToHex(randRange(attackMin * 0.7, attackMax * 0.7), -25, 25);
+    currentState.env2Decay = uiToHex(randRange(decayMin * 0.5, decayMax * 0.5), -25, 25);
     currentState.env2Sustain = uiToHex(randRange(-25, 25), -25, 25);
-    currentState.env2Release = uiToHex(randRange(releaseMin * 0.8, releaseMax * 0.8), -25, 25);
+    currentState.env2Release = uiToHex(randRange(releaseMin * 0.7, releaseMax * 0.7), -25, 25);
     
-    // ENV3 & ENV4 (optional modulation)
+    // ENV3 & ENV4 (optional modulation) - 50% chance
     if (Math.random() < 0.5) {
-        currentState.env3Attack = uiToHex(randRange(0, attackMax * 0.6), -25, 25);
-        currentState.env3Decay = uiToHex(randRange(-10, 10), -25, 25);
+        currentState.env3Attack = uiToHex(randRange(0, attackMax * 0.5), -25, 25);
+        currentState.env3Decay = uiToHex(randRange(-10, decayMax * 0.3), -25, 25);
         currentState.env3Sustain = uiToHex(randRange(-15, 15), -25, 25);
-        currentState.env3Release = uiToHex(randRange(0, releaseMax * 0.6), -25, 25);
+        currentState.env3Release = uiToHex(randRange(0, releaseMax * 0.5), -25, 25);
     }
 }
 
@@ -334,27 +335,35 @@ function morphFX() {
     const amount = morphSettings.fx.amount / 100;
     
     // Skip if amount is 0
-    if (amount === 0) return;
+    if (amount === 0) {
+        // Turn off all FX
+        currentState.modFXType = 'none';
+        currentState.delayRate = uiToHex(0, 0, 50);
+        currentState.delayFeedback = uiToHex(0, 0, 50);
+        currentState.reverbAmount = uiToHex(0, 0, 50);
+        return;
+    }
     
     const maxFX = MORPH_LIMITS.FX_LEVEL_MAX;
     
-    // ModFX (50% chance to enable)
-    if (Math.random() < 0.5) {
+    // ModFX - 70% chance to enable (increases with amount)
+    if (Math.random() < (0.3 + amount * 0.4)) {
         const modFXTypes = ['flanger', 'chorus', 'phaser', 'StereoChorus', 'warble'];
         currentState.modFXType = randChoice(modFXTypes);
-        currentState.modFXRate = uiToHex(randRange(0, 40 * amount), 0, 50);
-        currentState.modFXDepth = uiToHex(randRange(0, maxFX * amount), 0, 50);
+        // Direct scaling: slider at 50% = 50% of max depth
+        currentState.modFXRate = uiToHex(randRange(5, 45 * amount), 0, 50);
+        currentState.modFXDepth = uiToHex(randRange(10, maxFX * amount), 0, 50);
     } else {
         currentState.modFXType = 'none';
     }
     
-    // Delay
-    const useDelay = Math.random() < (0.3 + amount * 0.4); // 30-70% chance based on amount
+    // Delay - probability increases with amount (30% to 80%)
+    const useDelay = Math.random() < (0.3 + amount * 0.5);
     if (useDelay) {
-        // Delay parameters are unipolar (0-50)
-        currentState.delayRate = uiToHex(randRange(0, MORPH_LIMITS.DELAY_RATE_MAX * amount), 0, 50);
-        // Critical: Cap delay feedback at 25
-        currentState.delayFeedback = uiToHex(randRange(0, MORPH_LIMITS.DELAY_FEEDBACK_MAX * amount), 0, 50);
+        // Direct scaling: slider controls wet/dry mix
+        currentState.delayRate = uiToHex(randRange(5, MORPH_LIMITS.DELAY_RATE_MAX * amount), 0, 50);
+        // Feedback scales directly: 0 = no feedback, 100 = max feedback (25)
+        currentState.delayFeedback = uiToHex(randRange(5, MORPH_LIMITS.DELAY_FEEDBACK_MAX * amount), 0, 50);
         currentState.delayPingPong = randChoice(['0', '1']);
         currentState.delayAnalog = randChoice(['0', '1']);
     } else {
@@ -362,8 +371,9 @@ function morphFX() {
         currentState.delayFeedback = uiToHex(0, 0, 50);
     }
     
-    // Reverb - unipolar (0-50)
-    const reverbAmount = randRange(0, maxFX * amount);
+    // Reverb - always on when FX amount > 0, scales directly with slider
+    // 0 = no reverb, 100 = max reverb (up to safety limit of 80)
+    const reverbAmount = randRange(5, maxFX * amount);
     currentState.reverbAmount = uiToHex(reverbAmount, 0, 50);
 }
 
