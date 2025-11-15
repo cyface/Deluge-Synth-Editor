@@ -105,6 +105,11 @@ function updateKnobDisplay(knob, value, min, max) {
 function updateParameter(paramName, uiValue, min = -50, max = 50) {
     currentState[paramName] = uiToHex(uiValue, min, max);
 
+    // Send MIDI CC if enabled
+    if (typeof sendMIDICC === 'function') {
+        sendMIDICC(paramName, uiValue, min, max);
+    }
+
     // If this is an envelope parameter, redraw the envelope in real-time
     if (paramName.startsWith('env')) {
         const envNum = paramName.charAt(3); // Get envelope number (1-4)

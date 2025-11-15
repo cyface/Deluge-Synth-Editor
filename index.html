@@ -277,6 +277,14 @@
             font-weight: 600;
             color: #b0b0b0;
             font-size: 0.9em;
+            position: relative;
+        }
+
+        .control-label sup {
+            color: var(--accent-color);
+            font-size: 0.7em;
+            font-weight: 600;
+            margin-left: 2px;
         }
 
         /* Knob styling */
@@ -830,6 +838,17 @@
         </svg>
         </div>
         <div id="connectionStatusText" class="connection-status-text">Connect to Deluge</div>
+        <!-- MIDI CC Toggle - Only visible when connected -->
+        <div id="midiCCWrapper" class="midi-cc-wrapper" style="display: none; align-items: center; gap: 8px; margin-left: 10px;" onclick="event.stopPropagation();">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;" onclick="event.stopPropagation();">
+                <input type="checkbox" id="midiCCToggle" onchange="toggleMIDICC(); saveMIDICCState();" onclick="event.stopPropagation();" style="cursor: pointer;">
+                <span id="midiCCIndicator" style="font-size: 12px; color: #888;">MIDI CC: OFF</span>
+            </label>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <button onclick="event.stopPropagation(); loadMIDIFollowFromDeluge();" title="Load MIDI CC mappings from Deluge" style="padding: 4px 8px; font-size: 11px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-color); cursor: pointer;">Load MIDI Follow</button>
+                <span class="info-icon" title="You'll need to either add the Synth Editor (Upstream Port 3) to MIDI Follow &gt; Channel or learn to specific synth track to view reatime changes." style="cursor: help; color: var(--accent-color); font-size: 14px; line-height: 1; font-weight: bold;">ⓘ</span>
+            </div>
+        </div>
     </div>
     
     <div class="theme-switcher">
@@ -1976,6 +1995,7 @@
     <script src="js/ui-controls.js"></script>
     <script src="js/dx7.js"></script>
     <script src="js/patchmorph.js"></script>
+    <script src="js/midi-cc.js"></script>
     
     <!-- App: Initialization (uses everything) -->
     <script src="js/app.js"></script>

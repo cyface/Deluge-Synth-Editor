@@ -7,6 +7,7 @@
 function updateConnectionIcon(state) {
     const icon = document.getElementById('delugeConnection');
     const statusText = document.getElementById('connectionStatusText');
+    const midiCCWrapper = document.getElementById('midiCCWrapper');
     if (!icon) return;
     
     icon.classList.remove('disconnected', 'connected', 'active');
@@ -24,6 +25,11 @@ function updateConnectionIcon(state) {
         'connected': 'Connected',
         'active': 'Communicating'
     };
+    
+    // Show/hide MIDI CC controls based on connection state
+    if (midiCCWrapper) {
+        midiCCWrapper.style.display = (state === 'connected' || state === 'active') ? 'flex' : 'none';
+    }
     
     icon.title = titles[state] || titles['disconnected'];
     if (statusText) {
@@ -621,8 +627,26 @@ async function writeFile(path, data) {
         
         // 3. CLOSE
         console.log('Closing file...');
-        await sendJson({ close: { fid } });
-        console.log('File written successfully');
+        const closeResp = await sendJson({ close: { fid } });
+        
+        // Check close response for errors
+        if (closeResp.json['^close'] && closeResp.json['^close'].err !== 0) {
+            throw new Error('Close error: ' + closeResp.json['^close'].err + ' - File may not be fully written!');
+        }
+        
+        console.log('File closed successfully');
+        
+        // Small delay to ensure SD card flush (Deluge filesystem needs time)
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Verify the file was written by checking it exists
+        console.log('Verifying file was written...');
+        const exists = await fileExists(path);
+        if (!exists) {
+            throw new Error('Verification failed: File does not exist after write. SD card issue?');
+        }
+        
+        console.log('File written and verified successfully:', path);
         
         hideCommIndicator();
         return { success: true };

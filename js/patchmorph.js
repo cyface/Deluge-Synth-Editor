@@ -680,8 +680,7 @@ async function executePatchMorph() {
         }
         
         const suffixes = [
-            'Dream', 'Space', 'Texture', 'Vibe', 'Chaos', 'Flow', 'Pulse', 'Wave',
-            'Bass', 'Lead', 'Pad', 'Pluck', 'Key', 'Stab', 'Hit', 'Sweep',
+            'Dream', 'Space', 'Texture', 'Vibe', 'Chaos', 'Flow', 'Pulse', 'Wave','Key', 'Stab', 'Hit', 'Sweep',
             'Drone', 'Arp', 'Seq', 'Loop', 'Bell', 'String', 'Brass', 'Wind',
             'Shimmer', 'Glow', 'Shadow', 'Echo', 'Drift', 'Rise', 'Fall', 'Swell',
             'Atmosphere', 'Soundscape', 'Movement', 'Motion', 'Energy', 'Force', 'Power', 'Bloom',
