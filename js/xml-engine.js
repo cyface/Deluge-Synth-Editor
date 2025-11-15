@@ -758,6 +758,12 @@ function resetToDefault() {
         };
         
         updateUIFromState();
+        
+        // Send MIDI CC for all parameters (if MIDI CC is enabled)
+        if (typeof sendAllMIDICCs === 'function') {
+            sendAllMIDICCs();
+        }
+        
         updateSavePathIndicator();
         showNotification('✓ Reset to default values');
     }
