@@ -136,6 +136,58 @@ function sendMIDICC(paramName, uiValue, min, max) {
 }
 
 /**
+ * Send MIDI CC for all parameters that have CC mappings
+ * Used after patch morphing to update all CC values at once
+ */
+function sendAllMIDICCs() {
+    console.log('sendAllMIDICCs called. midiCCEnabled:', midiCCEnabled, 'delugeOutput:', !!delugeOutput);
+    
+    if (!midiCCEnabled) {
+        console.log('MIDI CC disabled, skipping send');
+        return;
+    }
+    if (!delugeOutput) {
+        console.log('No Deluge output, skipping send');
+        return;
+    }
+    
+    // Find all knobs with data-param attributes to get their min/max ranges
+    const knobs = document.querySelectorAll('[data-param]');
+    console.log('Found', knobs.length, 'knobs with data-param');
+    
+    let sentCount = 0;
+    knobs.forEach(knob => {
+        const paramName = knob.dataset.param;
+        const ccNumber = ccMappings[paramName];
+        
+        // Skip if no CC mapping or disabled (255)
+        if (ccNumber === undefined || ccNumber === 255) {
+            return;
+        }
+        
+        // Get current value from state
+        const hexValue = currentState[paramName];
+        if (!hexValue) {
+            console.log(`Skipping ${paramName}: no value in currentState`);
+            return;
+        }
+        
+        // Get min/max from knob data attributes
+        const min = parseFloat(knob.dataset.min) || -50;
+        const max = parseFloat(knob.dataset.max) || 50;
+        
+        // Convert hex to UI value
+        const uiValue = hexToUI(hexValue, min, max);
+        
+        // Send MIDI CC
+        sendMIDICC(paramName, uiValue, min, max);
+        sentCount++;
+    });
+    
+    console.log(`Sent MIDI CC for ${sentCount} parameters after patch morph`);
+}
+
+/**
  * Toggle MIDI CC sending on/off
  */
 function toggleMIDICC() {

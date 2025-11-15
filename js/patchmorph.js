@@ -643,6 +643,15 @@ async function executePatchMorph() {
     // Update UI
     updateUIFromState();
     
+    // Send MIDI CC for all changed parameters (if MIDI CC is enabled)
+    console.log('Patch morph complete, checking for sendAllMIDICCs function...');
+    if (typeof sendAllMIDICCs === 'function') {
+        console.log('sendAllMIDICCs function found, calling it...');
+        sendAllMIDICCs();
+    } else {
+        console.warn('sendAllMIDICCs function not found!');
+    }
+    
     // Display selected wavetable/sample files
     updateSelectedFilesDisplay();
     
