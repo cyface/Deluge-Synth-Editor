@@ -100,7 +100,7 @@ Direct USB transfer - no SD card removal needed!
 **Requirements:**
 - ✅ Deluge with **Community Firmware 1.3+** OR **Official Firmware 4.0+**
 - ✅ **Chrome** or **Edge** browser (Firefox/Safari have limited Web MIDI support)
-- ✅ USB cable connected to **Port 3** (rightmost USB port on Deluge)
+- ✅ USB cable connected to Deluge (uses USB port 3)
 
 **Steps:**
 1. Open `index.html` in Chrome or Edge
