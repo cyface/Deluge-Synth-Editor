@@ -96,8 +96,24 @@ let ccMappings = {
     delayFeedback: 52
 };
 
+// Reverse map CC number -> parameter name
+let ccNumberToParam = {};
+
 // MIDI CC enabled state (default: off)
 let midiCCEnabled = false;
+
+// Suppress outgoing CC when updating UI from incoming CC to avoid feedback
+let suppressMIDISend = false;
+
+function buildReverseCCMap() {
+    ccNumberToParam = {};
+    Object.keys(ccMappings).forEach(param => {
+        const cc = ccMappings[param];
+        if (typeof cc === 'number' && cc !== 255 && cc >= 0) {
+            ccNumberToParam[cc] = param;
+        }
+    });
+}
 
 // ============================================================================
 // MIDI CC SENDING
@@ -111,25 +127,23 @@ let midiCCEnabled = false;
  * @param {number} max - Maximum UI value
  */
 function sendMIDICC(paramName, uiValue, min, max) {
+    if (suppressMIDISend) return;
     if (!midiCCEnabled) return;
-    if (!delugeOutput) return;
+    // Prefer dedicated CC output if available; fall back to main output
+    const out = (typeof delugeCCOutput !== 'undefined' && delugeCCOutput) ? delugeCCOutput : delugeOutput;
+    if (!out) return;
     
     const ccNumber = ccMappings[paramName];
     if (ccNumber === undefined || ccNumber === 255) return; // 255 means disabled
     
     // Convert UI value to MIDI CC value (0-127)
-    // Normalize to 0-1 range
     const normalized = (uiValue - min) / (max - min);
-    // Clamp to 0-1
     const clamped = Math.max(0, Math.min(1, normalized));
-    // Convert to MIDI CC (0-127)
     const ccValue = Math.round(clamped * 127);
     
-    // Send MIDI CC message: [0xB0, CC# (0-119), Value (0-127)]
-    // Channel 1 (0xB0 = Control Change on channel 1)
     try {
-        delugeOutput.send([0xB0, ccNumber, ccValue]);
-        console.log(`MIDI CC: ${paramName} -> CC${ccNumber} = ${ccValue}`);
+        out.send([0xB0, ccNumber, ccValue]);
+        console.log(`MIDI CC OUT: ${paramName} -> CC${ccNumber} = ${ccValue} (via ${out.name})`);
     } catch (error) {
         console.error('Failed to send MIDI CC:', error);
     }
@@ -151,7 +165,6 @@ function sendAllMIDICCs() {
         return;
     }
     
-    // Find all knobs with data-param attributes to get their min/max ranges
     const knobs = document.querySelectorAll('[data-param]');
     console.log('Found', knobs.length, 'knobs with data-param');
     
@@ -159,32 +172,53 @@ function sendAllMIDICCs() {
     knobs.forEach(knob => {
         const paramName = knob.dataset.param;
         const ccNumber = ccMappings[paramName];
+        if (ccNumber === undefined || ccNumber === 255) return;
         
-        // Skip if no CC mapping or disabled (255)
-        if (ccNumber === undefined || ccNumber === 255) {
-            return;
-        }
-        
-        // Get current value from state
         const hexValue = currentState[paramName];
-        if (!hexValue) {
-            console.log(`Skipping ${paramName}: no value in currentState`);
-            return;
-        }
+        if (!hexValue) return;
         
-        // Get min/max from knob data attributes
         const min = parseFloat(knob.dataset.min) || -50;
         const max = parseFloat(knob.dataset.max) || 50;
-        
-        // Convert hex to UI value
         const uiValue = hexToUI(hexValue, min, max);
         
-        // Send MIDI CC
         sendMIDICC(paramName, uiValue, min, max);
         sentCount++;
     });
     
     console.log(`Sent MIDI CC for ${sentCount} parameters after patch morph`);
+}
+
+/**
+ * Handle incoming CC from Deluge and update UI/state
+ * @param {number} ccNumber - MIDI CC number (0-127)
+ * @param {number} ccValue - MIDI value (0-127)
+ */
+function handleIncomingCC(ccNumber, ccValue) {
+    const paramName = ccNumberToParam[ccNumber];
+    if (!paramName) return; // Not mapped
+    
+    // Find the UI control to get min/max ranges
+    const knob = document.querySelector(`[data-param="${paramName}"]`);
+    const min = knob ? parseFloat(knob.dataset.min) : -50;
+    const max = knob ? parseFloat(knob.dataset.max) : 50;
+    
+    // Convert CC (0-127) to UI value
+    const uiValue = min + (ccValue / 127) * (max - min);
+    
+    // Update UI display
+    if (knob) {
+        updateKnobDisplay(knob, uiValue, min, max);
+    }
+    
+    // Update state without echoing CC back
+    suppressMIDISend = true;
+    try {
+        updateParameter(paramName, uiValue, min, max);
+    } finally {
+        suppressMIDISend = false;
+    }
+    
+    console.log(`MIDI CC IN: CC${ccNumber} -> ${paramName} = ${ccValue} (ui=${uiValue.toFixed(2)})`);
 }
 
 /**
@@ -240,16 +274,15 @@ function loadMIDIFollowXML(xmlString) {
                 ccMappings[paramName] = ccNumber;
                 
                 // Special mappings: create aliases for parameters that have different names in our UI
-                // MIDIFollow uses "volumePostFX" but our UI uses "volume"
                 if (paramName === 'volumePostFX') {
                     ccMappings['volume'] = ccNumber;
                 }
             }
         }
         
+        // Rebuild reverse map and update labels
+        buildReverseCCMap();
         console.log('Loaded MIDI CC mappings from MIDIFollow.XML:', Object.keys(ccMappings).length, 'parameters');
-        
-        // Update UI labels to reflect which parameters have CC support
         updateLabelsForCCMappings();
         
         showNotification('✓ MIDI CC mappings loaded - ' + Object.keys(ccMappings).length + ' parameters');
@@ -293,27 +326,20 @@ async function loadMIDIFollowFromDeluge() {
  * Update all control labels to show CC numbers for parameters that support MIDI CC
  */
 function updateLabelsForCCMappings() {
-    // Find all knobs with data-param attributes
     const knobs = document.querySelectorAll('[data-param]');
     
     knobs.forEach(knob => {
         const paramName = knob.dataset.param;
         const ccNumber = ccMappings[paramName];
-        
-        // Find the associated label
         const controlGroup = knob.closest('.control-group');
         if (!controlGroup) return;
-        
         const label = controlGroup.querySelector('.control-label');
         if (!label) return;
         
-        // Get base label text (remove any existing superscript)
         let baseText = label.innerHTML;
-        // Remove existing superscript tags
         baseText = baseText.replace(/<sup>.*?<\/sup>/g, '');
         baseText = baseText.trim();
         
-        // If this parameter has a CC mapping, add the CC number as superscript
         if (ccNumber !== undefined && ccNumber !== 255) {
             label.innerHTML = baseText + '<sup>' + ccNumber + '</sup>';
         } else {
@@ -338,7 +364,8 @@ function initializeCCMappings() {
         }
     }
     
-    // Update labels after loading mappings
+    // Build reverse map and update labels
+    buildReverseCCMap();
     if (typeof document !== 'undefined' && document.readyState === 'complete') {
         updateLabelsForCCMappings();
     }

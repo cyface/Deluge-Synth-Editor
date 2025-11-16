@@ -80,6 +80,8 @@ async function toggleDelugeConnection() {
 let midiAccess = null;
 let delugeOutput = null;
 let delugeInput = null;
+// Add dedicated CC output (prefer Port 2) and listen to all inputs for CC
+let delugeCCOutput = null;
 let currentSession = null; // {sid, midMin, midMax, counter}
 let messagesSentInSession = 0;
 let pendingResponses = new Map(); // Map of messageId -> callback
@@ -144,6 +146,15 @@ async function connectToDeluge() {
             }
         }
 
+        // Prefer a CC output on Port 2 if available (for sending standard CC)
+        for (const output of midiAccess.outputs.values()) {
+            if (output.name.toLowerCase().includes('deluge') && (output.name.includes('2') || output.name.toLowerCase().includes('port 2'))) {
+                delugeCCOutput = output;
+                break;
+            }
+        }
+
+        // Select SYSEX input (typically Port 3)
         for (const input of midiAccess.inputs.values()) {
             if (input.name.toLowerCase().includes('deluge') &&
                 (input.name.includes('3') || input.name.toLowerCase().includes('sysex'))) {
@@ -153,14 +164,12 @@ async function connectToDeluge() {
             }
         }
 
-        if (!delugeInput) {
-            // Fallback
-            for (const input of midiAccess.inputs.values()) {
-                if (input.name.toLowerCase().includes('deluge')) {
-                    delugeInput = input;
-                    delugeInput.onmidimessage = handleMidiMessage;
-                    break;
-                }
+        // Also listen to all Deluge inputs (Ports 1/2) for incoming CC
+        for (const input of midiAccess.inputs.values()) {
+            if (input.name.toLowerCase().includes('deluge')) {
+                try {
+                    input.onmidimessage = handleMidiMessage;
+                } catch (_) {}
             }
         }
 
@@ -385,6 +394,21 @@ function resetSession() {
 // Handle incoming MIDI messages
 function handleMidiMessage(event) {
     const data = new Uint8Array(event.data);
+
+    // Handle standard MIDI CC (status 0xB0-0xBF)
+    const status = data[0] & 0xF0;
+    if (status === 0xB0 && data.length >= 3) {
+        const controller = data[1];
+        const value = data[2];
+        if (typeof handleIncomingCC === 'function') {
+            try {
+                handleIncomingCC(controller, value);
+            } catch (e) {
+                console.error('Error handling incoming CC:', e);
+            }
+        }
+        // Do not return; some devices may wrap CC in SYSEX too
+    }
 
     // Log all SYSEX for debugging
 
