@@ -846,7 +846,7 @@
             </label>
             <div style="display: flex; align-items: center; gap: 4px;">
                 <button onclick="event.stopPropagation(); loadMIDIFollowFromDeluge();" title="Load MIDI CC mappings from Deluge" style="padding: 4px 8px; font-size: 11px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-color); cursor: pointer;">Load MIDI Follow</button>
-                <span class="info-icon" title="You'll need to either add the Synth Editor (Upstream Port 3) to MIDI Follow &gt; Channel or learn to specific synth track to view reatime changes. Note only parameters with MIDI CC mappings will be sent." style="cursor: help; color: var(--accent-color); font-size: 14px; line-height: 1; font-weight: bold;">ⓘ</span>
+                <span class="info-icon" title="You'll need to add the Synth Editor (Upstream Port 3) to MIDI Follow &gt; Channel to view reatime changes (MIDI learn will not work). Note that only parameters with MIDI CC mappings will be sent." style="cursor: help; color: var(--accent-color); font-size: 14px; line-height: 1; font-weight: bold;">ⓘ</span>
             </div>
         </div>
     </div>
@@ -864,6 +864,9 @@
     </a>
     
     <div class="container">
+        <div style="position: fixed; top: 70px; left: 20px; font-size: 12px; color: #888; opacity: 0.8; z-index: 9999; font-weight: 500;">
+            v1.1
+        </div>
         <div style="text-align: center; margin-bottom: 20px;">
             <img src="logo-deluge@2x.png" alt="Deluge Logo" style="max-width: 200px; height: auto;">
         </div>
