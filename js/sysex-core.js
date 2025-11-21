@@ -660,14 +660,29 @@ async function writeFile(path, data) {
         
         console.log('File closed successfully');
         
-        // Small delay to ensure SD card flush (Deluge filesystem needs time)
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Clear cache for this directory to ensure fresh listing
+        const dirPath = path.substring(0, path.lastIndexOf('/') + 1);
+        clearDirectoryCache(dirPath);
         
-        // Verify the file was written by checking it exists
+        // Delay to ensure SD card flush (Deluge filesystem needs time, especially on slower SD cards)
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Verify the file was written by checking it exists (with retry)
         console.log('Verifying file was written...');
-        const exists = await fileExists(path);
+        let exists = false;
+        let retries = 3;
+        while (!exists && retries > 0) {
+            exists = await fileExists(path);
+            if (!exists && retries > 1) {
+                console.log(`File not found yet, retrying... (${retries - 1} attempts remaining)`);
+                await new Promise(resolve => setTimeout(resolve, 300)); // Additional delay before retry
+                clearDirectoryCache(dirPath); // Clear cache again before retry
+            }
+            retries--;
+        }
+        
         if (!exists) {
-            throw new Error('Verification failed: File does not exist after write. SD card issue?');
+            throw new Error('Verification failed: File does not exist after write. SD card may be slow or write-protected.');
         }
         
         console.log('File written and verified successfully:', path);
