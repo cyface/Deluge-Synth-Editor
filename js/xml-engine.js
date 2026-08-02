@@ -296,21 +296,6 @@ function generateXML() {
         xml += `\n\t\trelease="${currentState.sidechainRelease}" />\n`;
     }
 
-    // Audio compressor and stutter config. The Deluge writes both
-    // unconditionally for every sound (mod_controllable_audio.cpp:471-486), so
-    // write them unconditionally too rather than skipping them at defaults -
-    // the defaults here match the firmware's and are inert.
-    xml += `\t<audioCompressor\n\t\tattack="${currentState.compAttack}"`;
-    xml += `\n\t\trelease="${currentState.compRelease}"`;
-    xml += `\n\t\tthresh="${currentState.compThresh}"`;
-    xml += `\n\t\tratio="${currentState.compRatio}"`;
-    xml += `\n\t\tcompHPF="${currentState.compHPF}"`;
-    xml += `\n\t\tcompBlend="${currentState.compBlend}" />\n`;
-
-    xml += `\t<stutter\n\t\tquantized="${currentState.stutterQuantized}"`;
-    xml += `\n\t\treverse="${currentState.stutterReverse}"`;
-    xml += `\n\t\tpingPong="${currentState.stutterPingPong}" />\n`;
-
     // Default parameters
     xml += '\t<defaultParams';
     xml += `\n\t\tarpeggiatorGate="${currentState.arpeggiatorGate}"`;
@@ -483,6 +468,26 @@ function generateXML() {
     if (passThroughData.unknownTags) {
         xml += passThroughData.unknownTags;
     }
+
+    // Audio compressor and stutter config go last, after <midiOutput>, because
+    // that is where the Deluge puts them - ModControllableAudio::writeTagsToFile
+    // is called at the end of Sound::writeToFile (sound.cpp:4264). The reader
+    // does not care about order, but matching it keeps diffs against
+    // device-written files clean.
+    //
+    // Both are written unconditionally, again matching the firmware
+    // (mod_controllable_audio.cpp:471-486). The defaults are inert, so writing
+    // them into a preset that lacked them changes nothing.
+    xml += `\t<audioCompressor\n\t\tattack="${currentState.compAttack}"`;
+    xml += `\n\t\trelease="${currentState.compRelease}"`;
+    xml += `\n\t\tthresh="${currentState.compThresh}"`;
+    xml += `\n\t\tratio="${currentState.compRatio}"`;
+    xml += `\n\t\tcompHPF="${currentState.compHPF}"`;
+    xml += `\n\t\tcompBlend="${currentState.compBlend}" />\n`;
+
+    xml += `\t<stutter\n\t\tquantized="${currentState.stutterQuantized}"`;
+    xml += `\n\t\treverse="${currentState.stutterReverse}"`;
+    xml += `\n\t\tpingPong="${currentState.stutterPingPong}" />\n`;
 
     xml += '</sound>\n';
 

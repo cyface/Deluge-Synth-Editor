@@ -168,6 +168,19 @@ so anything moved out of `passThroughData` must also be added to `SOUND_TAGS`
 (or `ARP_ATTRIBUTES`) - otherwise it gets written twice, once from state and
 once from the replay buffer.
 
+Verified against `TIM KICK1.XML` pulled off the card over SysEx (5343 bytes,
+183 values): zero lost, zero changed, zero added, second pass byte-identical,
+and the output is structurally identical to the source - same elements in the
+same order, same attributes with the same values. The 54-byte size difference
+is whitespace only.
+
+Child element order is worth preserving even though the reader does not care
+(it is a tag loop). `<audioCompressor>` and `<stutter>` come *last*, after
+`<midiOutput>`, because `ModControllableAudio::writeTagsToFile` runs at the end
+of `Sound::writeToFile` (`sound.cpp:4264`). Writing them next to `<sidechain>`
+where they logically belong produced a valid file that diffed noisily against
+anything the Deluge wrote.
+
 ---
 
 ## Enum attributes must use the firmware's exact strings
