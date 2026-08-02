@@ -266,6 +266,45 @@ rather than implying the controls do more than they do.
 
 ---
 
+## One editor session at a time, and a wedged write path needs a power cycle
+
+**Decision: never have two tabs connected to the Deluge at once, and close the
+session when done rather than leaving a tab connected.**
+
+Observed failure: `TIM KICK1.XML` was found at 0 bytes on the card after a save
+attempt, and the editor reported `XML parsing failed: Document is empty` when
+loading it - the file really was empty, so the Deluge could not load it either.
+
+The truncation itself is the known destructive-save behaviour: `open` with
+`write:1` truncates before any data arrives, so a write that dies mid-transfer
+leaves nothing. That is documented under the number-input entry above and has
+not changed.
+
+What was new is the state the device got into. Several sessions had accumulated
+(`^session` was handing out `sid: 11`, and the editor had been connected from
+more than one tab). In that state:
+
+- `dir` worked normally.
+- `open` succeeded, but only after four retries.
+- **`write` was never answered at all** - the first 24-byte chunk retried for
+  two minutes without a single `^write` reply.
+
+A power cycle of the Deluge cleared it completely. The same 5343-byte file then
+wrote in about two minutes with `err: 0` on every chunk, and read back
+byte-identical (SHA-256 verified).
+
+Two things make the stall self-sustaining once it starts. The session's msgId
+window is only seven values (`midMin: 89, midMax: 95`, i.e. 0x59-0x5F), and the
+first ten retry timeouts are 120 ms - so the ID space wraps in under a second
+and resends start reusing IDs that are still in flight.
+
+**Operationally:** keep one tab. If writes stop being answered while `dir` and
+`open` still work, stop retrying and power cycle - it is not something the retry
+logic can recover from. And pull a copy of anything irreplaceable before saving
+over it, because the failure mode destroys the previous version.
+
+---
+
 ## Corrections to earlier conclusions
 
 Recorded because each of these was stated confidently and was wrong, and the
