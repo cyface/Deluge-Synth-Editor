@@ -533,24 +533,30 @@ function handleMidiMessage(event) {
 /**
  * Per-attempt timeouts for sendJson, in milliseconds.
  *
- * The Deluge queues smSysex commands (dir/open/read/write/...) in SysExQ and
- * drains them from a scheduler task. That enqueue silently drops requests under
- * memory pressure: measured against community firmware 1.3 beta, `ping` (which
- * midi_engine answers synchronously, bypassing the queue) replies 15/15, while
- * an identical `dir` replies about 9/15 at any pacing. A dropped request is
- * never processed at all, so no reply is ever coming and waiting longer cannot
- * help - resending is the only recovery.
+ * The Deluge silently drops any inbound SysEx longer than 48 bytes, a large
+ * fraction of the time. 48 bytes is exactly 16 USB-MIDI packets, which is
+ * exactly 64 bytes on the wire - the bulk endpoint's max packet size. The
+ * firmware arms its receive pipe for one max-packet at a time and the re-arm
+ * sits on an SD-blocked task, so a message needing a second USB transfer can
+ * lose its tail; the truncated payload then fails to parse and is discarded
+ * without any reply. Reported as DelugeFirmware issue #4762, and documented in
+ * docs/deluge-sysex-reliability.md.
  *
- * A request that IS processed always replies, so a timeout means the Deluge
- * never saw it. Every command addresses an explicit fid/addr/offset, so
- * resending is idempotent.
+ * Measured on community firmware 1.3 beta: 48-byte requests reply 40/40,
+ * 49-byte requests 17/40. A dropped request is never processed at all, so no
+ * reply is ever coming and waiting longer cannot help - resending is the only
+ * recovery. Requests that ARE processed always reply in 21-29ms, with no slow
+ * tail, even at 2KB.
  *
- * Measured reply latency is 21-29ms with no slow tail, and holds even for a
- * 2KB reply - so waiting longer never helps a dropped request, only resending
- * does. The drop rate is high and varies (roughly 30-60% of sends are lost, and
- * it worsens the longer a session runs), so the budget is many short attempts
- * rather than a few patient ones: 20 tries at 400ms costs 8s in the worst case
- * but almost always lands within a second.
+ * Every command addresses an explicit fid/addr/offset, so resending is
+ * idempotent. The budget is therefore many short attempts rather than a few
+ * patient ones: 20 tries at 400ms costs 8s in the worst case but almost always
+ * lands within a second.
+ *
+ * Commands land on either side of the cliff depending on their arguments, so
+ * this cannot be avoided by construction - `read` crosses 48 bytes once `addr`
+ * grows, `open` crosses it with any real path, and `write` (128-byte binary
+ * payload, ~1170 bytes total) is far over it.
  *
  * The long tail exists only for operations that may genuinely be slow on the
  * card (open/close/flush on a large file), not for dropped-request recovery.

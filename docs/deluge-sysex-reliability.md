@@ -102,27 +102,116 @@ Further measurements:
   There is no slow tail to wait for.
 - **Not rate related.** Success was the same at 0ms, 50ms and 500ms spacing
   between requests.
-- **Not size related.** A 2086-byte reply got through while 369-byte replies
-  were dropped.
+- **Not reply size related.** A 2086-byte reply got through while 369-byte
+  replies were dropped. The outbound direction is not the problem.
 - **Not msgId related.** The same msgId fails and then succeeds.
-- **It gets worse the longer a session runs**, from roughly 60% success early
-  to 30% or less after sustained traffic, recovering only partially when idle.
-  This points at resource exhaustion around `SysExQ`, whose entries are
-  ~1280 bytes each.
+- **Not the USB cable.** Two different cables, 30 paired `ping`/`dir` sends
+  each, gave an identical 60% `dir` success rate with `ping` at 30/30 and
+  90/90. A marginal cable would drop pings too and would corrupt or truncate
+  replies; neither happens.
 
-- **Not the USB cable.** Tested with two different cables, 30 paired
-  ping/`dir` sends each:
+### It is the size of the *request*
 
-  | cable    | `ping` (sync path) | `dir` (queued path) |
-  | -------- | ------------------ | ------------------- |
-  | original | 30/30              | 18/30 (60%)         |
-  | replacement | 90/90 (3 runs)  | 54/90 (60%)         |
+The `ping` versus `dir` comparison above confounds two variables: `ping` takes
+a different firmware path *and* is a much smaller message. The firmware also
+has a **JSON** ping, which goes through `SysExQ` exactly like `dir` does, and
+that separates them:
 
-  Identical. A marginal cable would drop pings too and would corrupt or
-  truncate replies; neither happens. `ping` has never dropped a single
-  message on either cable.
+| request              | firmware path       | request bytes | replies   |
+| -------------------- | ------------------- | ------------- | --------- |
+| raw `ping` (0x00)    | synchronous         | 8             | **30/30** |
+| `{"ping":{}}`        | **queued, SysExQ**  | 19            | **30/30** |
+| `{"dir":{...}}`      | queued, SysExQ      | 57            | 11/30     |
+| `{"dir":{...}}` padded | queued, SysExQ    | 265           | **0/30**  |
+
+The queue is not the problem. Request size is.
+
+Sweeping the boundary, padding the `path` value so the *reply* stays small and
+only the inbound direction varies:
+
+| request bytes | USB-MIDI packets | USB wire bytes | replies    |
+| ------------- | ---------------- | -------------- | ---------- |
+| 28–47         | ≤16              | ≤64            | 100%       |
+| **48**        | 16               | **64**         | **40/40**  |
+| **49**        | 17               | **68**         | **17/40**  |
+| 50            | 17               | 68             | 24/40      |
+| 97            | 33               | 132            | 0/15       |
+
+Every size from 28 to 48 bytes replied 100% of the time. One byte more and it
+collapses to roughly 40%.
+
+**48 SysEx bytes is exactly 16 USB-MIDI packets, which is exactly 64 bytes on
+the wire — the USB full-speed bulk maximum packet size.** Any SysEx needing a
+second USB transfer becomes unreliable. Above the threshold the rate is erratic
+rather than steadily worsening (97 and 129 bytes measured 0%, 161 bytes 47%).
+
+This is not the reassembly buffer overflowing: `incomingSysexBuffer` is 1024
+bytes (`src/deluge/io/midi/midi_device.h:160`), far above the cliff.
 
 This is firmware-side. Any smSysex client, including DEx, is exposed to it.
+
+### Mechanism
+
+Confirmed against firmware source (`beta` @ `ea4e69eb`). Two defects combine.
+
+**The receive pipe is armed for exactly one max-packet, and the re-arm is
+blocked by SD access.** `receiveData` is 64 bytes
+(`midi_device_manager.h:81`) and every arm sets `tranlen = 64`
+(`midi_engine.cpp:926`), so one armed transfer absorbs at most 16 USB-MIDI
+packets = 48 SysEx bytes. Anything longer needs the pipe re-armed mid-message.
+That re-arm only happens in `checkIncomingUsbMidi`, which sits on the
+`midi routine` task registered `RESOURCE_SD | RESOURCE_USB`
+(`deluge.cpp:547-548`) and early-returns whenever the card is busy
+(`midi_engine.cpp:855-861`, commented in the source as *"hack to avoid SysEx
+handlers clashing with other sd-card activity"*). Meanwhile the FIFO-read task
+holds only `RESOURCE_USB` and keeps draining. Lose that race and the driver
+returns `USB_READOVER` (`r_usb_plibusbip.c:612`), which clears the hardware
+FIFO — the tail of the message, including the packet carrying `F7`, is gone
+with no error and no callback.
+
+`ping` at 8 bytes is 3 packets = 12 wire bytes, always inside one armed window,
+so it is structurally immune. That is why it never drops.
+
+**A request that fails to parse is popped without any reply.** In
+`handleNextSysEx` (`smsysex.cpp:791-848`), `done:` is also the natural
+fall-through of the tag-matching loop:
+
+```cpp
+parser.match('{');                                            // return value discarded
+while (*(tagName = parser.readNextTagOrAttributeName())) {
+    if (!strcmp(tagName, "open")) { openFile(...); goto done; }
+    ...
+    parser.exitTag();
+}
+done:
+    SysExQ.pop_front();
+```
+
+A truncated payload makes `readNextTagOrAttributeName()` return `""`, the loop
+exits normally, and the entry is popped with no reply generated.
+
+The first defect loses the bytes; the second turns what should be a recoverable
+parse error into a silent, unanswerable hang.
+
+Reported upstream as
+[DelugeFirmware issue #4762](https://github.com/SynthstromAudible/DelugeFirmware/issues/4762).
+
+### What this means in practice
+
+Commands land on either side of the 48-byte cliff depending on their arguments:
+
+- `{"read":{"fid":1,"addr":0,"size":1024}}` is 47 bytes and reliable — but
+  `"addr":4096` makes it 50, so reads get flaky deeper into a file.
+- `open` with a real path such as `/SYNTHS/FACT/SYNT000.XML` is ~60 bytes and
+  always needs retries.
+- `write` carries a 128-byte binary payload, ~1170 bytes total, so it is far
+  over the cliff and fails most of the time.
+- Directory listings of deeply nested paths get worse the longer the path.
+
+An earlier revision of this document blamed `SysExQ` memory pressure and
+reported the drop rate "worsening over a session". That was wrong: the varying
+rate was an artefact of comparing differently sized messages. The queued path
+itself is reliable, as the 19-byte JSON ping shows.
 
 ### Workaround in this fork
 
