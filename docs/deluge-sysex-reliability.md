@@ -110,6 +110,18 @@ Further measurements:
   This points at resource exhaustion around `SysExQ`, whose entries are
   ~1280 bytes each.
 
+- **Not the USB cable.** Tested with two different cables, 30 paired
+  ping/`dir` sends each:
+
+  | cable    | `ping` (sync path) | `dir` (queued path) |
+  | -------- | ------------------ | ------------------- |
+  | original | 30/30              | 18/30 (60%)         |
+  | replacement | 90/90 (3 runs)  | 54/90 (60%)         |
+
+  Identical. A marginal cable would drop pings too and would corrupt or
+  truncate replies; neither happens. `ping` has never dropped a single
+  message on either cable.
+
 This is firmware-side. Any smSysex client, including DEx, is exposed to it.
 
 ### Workaround in this fork
