@@ -95,6 +95,9 @@ let cacheTimestamp = new Map(); // Track when cache entries were created
 let isActivelyTransmitting = false; // Flag to track active operations
 const MAX_MESSAGES_PER_SESSION = 100;
 const CACHE_DURATION_MS = 30000; // Cache directory listings for 30 seconds
+// Deluge clamps `lines` to MAX_DIR_LINES (smsysex.cpp), so a page shorter than
+// this is the last one.
+const DELUGE_MAX_DIR_LINES = 25;
 
 // Deluge SYSEX manufacturer ID and commands (DEx smSysex protocol)
 const SYSEX_START = 0xF0;
@@ -295,11 +298,33 @@ async function openSession(tag = 'DelugeSynthEditor') {
     if (currentSession) {
         return currentSession;
     }
-    
+
+    // assignSession() runs on the same queued path as every other smSysex
+    // command, so the session request can be dropped too - see the note on
+    // SEND_ATTEMPT_TIMEOUTS_MS. Resend rather than sitting on one long timeout.
+    let lastError = null;
+
+    for (let attempt = 0; attempt < SEND_ATTEMPT_TIMEOUTS_MS.length; attempt++) {
+        try {
+            return await attemptOpenSession(tag, SEND_ATTEMPT_TIMEOUTS_MS[attempt]);
+        } catch (error) {
+            lastError = error;
+            console.warn('Session negotiation attempt ' + (attempt + 1) + ' failed ('
+                + error.message + ')');
+        }
+    }
+
+    throw lastError;
+}
+
+/**
+ * A single session negotiation round trip
+ */
+function attemptOpenSession(tag, timeoutMs) {
     const sessionCmd = { session: { tag } };
     const jsonData = JSON.stringify(sessionCmd);
     const jsonBytes = new TextEncoder().encode(jsonData);
-    
+
     const message = new Uint8Array([
         SYSEX_START,
         ...STD_MANUFACTURER_ID,
@@ -308,23 +333,22 @@ async function openSession(tag = 'DelugeSynthEditor') {
         ...jsonBytes,
         SYSEX_END
     ]);
-    
+
     return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
             cleanup();
-            console.warn('Session negotiation timed out after 15 seconds - will use fallback mode');
-            reject(new Error('Session timeout'));
-        }, 15000);
-        
+            reject(new Error('Session timeout after ' + timeoutMs + 'ms'));
+        }, timeoutMs);
+
         const cleanup = () => {
             pendingResponses.delete(0);
         };
-        
+
         const responseHandler = (response) => {
             clearTimeout(timeoutId);
             cleanup();
-            
-            
+
+
             if (response.json && response.json['^session']) {
                 const info = response.json['^session'];
                 currentSession = {
@@ -339,9 +363,9 @@ async function openSession(tag = 'DelugeSynthEditor') {
                 reject(new Error('Invalid session response'));
             }
         };
-        
+
         pendingResponses.set(0, responseHandler);
-        
+
         if (delugeOutput) {
             delugeOutput.send(message);
         } else {
@@ -367,12 +391,14 @@ async function ensureSession() {
         return await openSession();
     } catch (error) {
         console.warn('Session negotiation failed, using fallback mode:', error);
-        // Fallback: Create a simple session without negotiation
-        // This works with older firmware or when session protocol is not available
+        // Fallback: Create a simple session without negotiation.
+        // The firmware encodes msgId as (sid << 3) + (1..7), so a fallback range
+        // must stay inside a single sid block and skip the (sid << 3) + 0 value,
+        // otherwise we emit message IDs the Deluge treats as malformed.
         currentSession = {
-            sid: 0,
-            midMin: 0x41,  // Use default message ID range
-            midMax: 0x4F,
+            sid: 15,
+            midMin: 0x79,  // (15 << 3) + 1
+            midMax: 0x7F,  // (15 << 3) + 7
             counter: 1
         };
         return currentSession;
@@ -435,13 +461,23 @@ function handleMidiMessage(event) {
 
     const commandPos = isDevId ? 2 : 5;
     const msgIdPos = isDevId ? 3 : 6;
-    
-    // Check if it's a JSON reply
-    if (data[commandPos] !== SYSEX_CMD_JSON_REPLY) {
+
+    const command = data[commandPos];
+    const msgId = data[msgIdPos];
+
+    // Check if it's a JSON reply.
+    // The Deluge answers most commands with JsonReply (0x05), but the session
+    // handshake reply (^session) is sent via startDirect(), which uses the plain
+    // Json command byte (0x04) with msgId 0 instead. Accept that one case too or
+    // session negotiation never completes. assignSession() is the only caller of
+    // startDirect(); see smsysex.cpp startDirect()/startReply() in the firmware.
+    // Requests we send also use 0x04, so keep the exception pinned to msgId 0 -
+    // otherwise an echoed request could be mistaken for a reply.
+    const isReply = command === SYSEX_CMD_JSON_REPLY
+        || (command === SYSEX_CMD_JSON && msgId === 0);
+    if (!isReply) {
         return;
     }
-
-    const msgId = data[msgIdPos];
     const sysexEnd = data.lastIndexOf(SYSEX_END);
     
     if (sysexEnd === -1) {
@@ -482,6 +518,8 @@ function handleMidiMessage(event) {
             const callback = pendingResponses.get(msgId);
             pendingResponses.delete(msgId);
             callback(response);
+        } else {
+            console.warn('Received reply with no pending handler (msgId=' + msgId.toString(16) + '):', jsonText);
         }
     } catch (error) {
         console.error('Error parsing SYSEX response:', error, jsonText);
@@ -493,64 +531,116 @@ function handleMidiMessage(event) {
 // ============================================================================
 
 /**
+ * Per-attempt timeouts for sendJson, in milliseconds.
+ *
+ * The Deluge queues smSysex commands (dir/open/read/write/...) in SysExQ and
+ * drains them from a scheduler task. That enqueue silently drops requests under
+ * memory pressure: measured against community firmware 1.3 beta, `ping` (which
+ * midi_engine answers synchronously, bypassing the queue) replies 15/15, while
+ * an identical `dir` replies about 9/15 at any pacing. A dropped request is
+ * never processed at all, so no reply is ever coming and waiting longer cannot
+ * help - resending is the only recovery.
+ *
+ * A request that IS processed always replies, so a timeout means the Deluge
+ * never saw it. Every command addresses an explicit fid/addr/offset, so
+ * resending is idempotent.
+ *
+ * Measured reply latency is 21-29ms with no slow tail, and holds even for a
+ * 2KB reply - so waiting longer never helps a dropped request, only resending
+ * does. The drop rate is high and varies (roughly 30-60% of sends are lost, and
+ * it worsens the longer a session runs), so the budget is many short attempts
+ * rather than a few patient ones: 20 tries at 400ms costs 8s in the worst case
+ * but almost always lands within a second.
+ *
+ * The long tail exists only for operations that may genuinely be slow on the
+ * card (open/close/flush on a large file), not for dropped-request recovery.
+ */
+const SEND_ATTEMPT_TIMEOUTS_MS = [
+    ...Array(20).fill(400),
+    2000, 4000, 10000
+];
+
+/**
  * Send JSON command with optional binary payload
- * Automatically manages session and message IDs
+ * Automatically manages session and message IDs, and resends dropped commands
  */
 async function sendJson(cmd, binaryPayload = null) {
     if (!delugeOutput) {
         throw new Error('Not connected to Deluge');
     }
-    
-    const session = await ensureSession();
-    const msgId = buildMsgId(session);
-    incrementCounter(session);
-    messagesSentInSession++;
-    
-    console.log('sendJson:', cmd, 'msgId=' + msgId.toString(16));
-    
-    const jsonData = JSON.stringify(cmd);
-    const jsonBytes = new TextEncoder().encode(jsonData);
-    
-    let message;
-    if (cmd.write && binaryPayload) {
-        // Write command with binary data
-        const packedBinary = pack8bitTo7bit(binaryPayload);
-        message = new Uint8Array([
-            SYSEX_START,
-            ...STD_MANUFACTURER_ID,
-            SYSEX_CMD_JSON,
-            msgId,
-            ...jsonBytes,
-            0x00,  // Separator between JSON and binary
-            ...packedBinary,
-            SYSEX_END
-        ]);
-        console.log('Sending write with', binaryPayload.length, 'bytes binary data');
-    } else {
-        // JSON only
-        message = new Uint8Array([
-            SYSEX_START,
-            ...STD_MANUFACTURER_ID,
-            SYSEX_CMD_JSON,
-            msgId,
-            ...jsonBytes,
-            SYSEX_END
-        ]);
+
+    let lastError = null;
+
+    for (let attempt = 0; attempt < SEND_ATTEMPT_TIMEOUTS_MS.length; attempt++) {
+        // Take a fresh message ID per attempt, so a late reply to an abandoned
+        // attempt can never be mistaken for the reply to this one.
+        const session = await ensureSession();
+        const msgId = buildMsgId(session);
+        incrementCounter(session);
+        messagesSentInSession++;
+
+        const attemptLabel = attempt > 0 ? ' (retry ' + attempt + ')' : '';
+        console.log('sendJson:', cmd, 'msgId=' + msgId.toString(16) + attemptLabel);
+
+        const jsonData = JSON.stringify(cmd);
+        const jsonBytes = new TextEncoder().encode(jsonData);
+
+        let message;
+        if (cmd.write && binaryPayload) {
+            // Write command with binary data
+            const packedBinary = pack8bitTo7bit(binaryPayload);
+            message = new Uint8Array([
+                SYSEX_START,
+                ...STD_MANUFACTURER_ID,
+                SYSEX_CMD_JSON,
+                msgId,
+                ...jsonBytes,
+                0x00,  // Separator between JSON and binary
+                ...packedBinary,
+                SYSEX_END
+            ]);
+            console.log('Sending write with', binaryPayload.length, 'bytes binary data');
+        } else {
+            // JSON only
+            message = new Uint8Array([
+                SYSEX_START,
+                ...STD_MANUFACTURER_ID,
+                SYSEX_CMD_JSON,
+                msgId,
+                ...jsonBytes,
+                SYSEX_END
+            ]);
+        }
+
+        const timeoutMs = SEND_ATTEMPT_TIMEOUTS_MS[attempt];
+
+        try {
+            return await new Promise((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    pendingResponses.delete(msgId);
+                    reject(new Error('No reply to msgId ' + msgId.toString(16)
+                        + ' after ' + timeoutMs + 'ms'));
+                }, timeoutMs);
+
+                pendingResponses.set(msgId, (response) => {
+                    clearTimeout(timeoutId);
+                    resolve(response);
+                });
+
+                delugeOutput.send(message);
+            });
+        } catch (error) {
+            lastError = error;
+            // Losing a few requests is normal here, so only get loud once the
+            // resends stop looking routine.
+            const notice = attempt >= 12 ? console.warn : console.log;
+            notice('Deluge did not answer ' + Object.keys(cmd).join(',')
+                + ' (' + error.message + ') - resending');
+        }
     }
-    
-    return new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-            pendingResponses.delete(msgId);
-            reject(new Error('Command timeout (10s). Check Deluge connection.'));
-        }, 10000);
-        
-        pendingResponses.set(msgId, (response) => {
-            clearTimeout(timeoutId);
-            resolve(response);
-        });
-        
-        delugeOutput.send(message);
-    });
+
+    throw new Error('Command failed after ' + SEND_ATTEMPT_TIMEOUTS_MS.length
+        + ' attempts. Check Deluge connection. (' + lastError.message + ')');
 }
 
 /**
@@ -784,24 +874,27 @@ async function listDirectory(path, forceRefresh = false) {
     
     const allEntries = [];
     let offset = 0;
-    const chunkSize = 64; // Request up to 64, but Deluge returns max 25
+    const chunkSize = DELUGE_MAX_DIR_LINES;
     let hasMore = true;
-    
+
     try {
         while (hasMore) {
         const resp = await sendJson({ dir: { path, offset, lines: chunkSize } });
-        
+
         if (!resp.json['^dir']) {
             console.error('Invalid directory response - no ^dir key. Response:', resp.json);
             throw new Error('Invalid directory response');
         }
-        
+
         const entries = resp.json['^dir'].list || [];
-        
+
         if (entries.length > 0) {
             allEntries.push(...entries);
             offset += entries.length;
-            hasMore = entries.length > 0;
+            // A short page means we hit the end of the directory. Stop here
+            // rather than spending another (individually unreliable) round trip
+            // just to be told the next page is empty.
+            hasMore = entries.length >= DELUGE_MAX_DIR_LINES;
         } else {
             hasMore = false;
         }
