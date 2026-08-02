@@ -328,6 +328,10 @@ Preserved when loading and saving files:
 - Load → Edit → Save = No data loss for advanced features
 - Safe for round-trip editing of complex patches
 
+### Further Reading
+- [SysEx reliability](docs/deluge-sysex-reliability.md) - session timeouts, dropped commands, and why saves are chunked and verified
+- [Decisions](docs/decisions.md) - choices that look wrong but are deliberate, and earlier conclusions that turned out to be wrong
+
 ## Known Limitations
 
 - **No Real-Time Control**: Changes require manually reloading the patch on Deluge (firmware limitation)
