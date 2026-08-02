@@ -98,6 +98,14 @@ const CACHE_DURATION_MS = 30000; // Cache directory listings for 30 seconds
 // Deluge clamps `lines` to MAX_DIR_LINES (smsysex.cpp), so a page shorter than
 // this is the last one.
 const DELUGE_MAX_DIR_LINES = 25;
+// Bytes of file data per write command. The binary payload is 7-bit packed
+// (every 7 bytes become 8), so the SysEx sent is roughly
+// 48 + chunk + ceil(chunk/7) bytes - and the Deluge drops inbound SysEx that
+// spans more than one 64-byte USB transfer (DelugeFirmware#4762). At the old
+// 128 the request was ~195 bytes and lost its middle transfers every time,
+// leaving exactly 44 of every 128 bytes on the card.
+const WRITE_CHUNK_SIZE = 32;
+const WRITE_CHUNK_ATTEMPTS = 5;
 
 // Deluge SYSEX manufacturer ID and commands (DEx smSysex protocol)
 const SYSEX_START = 0xF0;
@@ -711,37 +719,66 @@ async function writeFile(path, data) {
         const fid = openResp.json['^open'].fid;
         console.log('File opened with fid:', fid);
         
-        // 2. WRITE in 128-byte chunks
-        const chunkSize = 128;
+        // 2. WRITE in chunks
         let offset = 0;
-        
+
         while (offset < bytes.length) {
-            const size = Math.min(chunkSize, bytes.length - offset);
+            const size = Math.min(WRITE_CHUNK_SIZE, bytes.length - offset);
             const chunk = bytes.slice(offset, offset + size);
-            
+
             console.log('Writing chunk:', offset, '-', offset + size);
-            
-            const writeResp = await sendJson(
-                { write: { fid, addr: offset, size: chunk.length } },
-                chunk  // Binary payload
-            );
-            
-            if (writeResp.json['^write'] && writeResp.json['^write'].err !== 0) {
-                const errCode = writeResp.json['^write'].err;
-                let errMsg = 'Write error: ' + errCode;
-                
-                // Provide helpful error messages for common error codes
-                if (errCode === 9) {
-                    errMsg = 'Write failed: No SD card detected or SD card is write-protected. Please check your SD card and try again.';
-                } else if (errCode === 2) {
-                    errMsg = 'Write failed: File not found or permission denied.';
-                } else if (errCode === 5) {
-                    errMsg = 'Write failed: SD card is full or out of space.';
+
+            let written = 0;
+
+            for (let attempt = 0; attempt < WRITE_CHUNK_ATTEMPTS; attempt++) {
+                const writeResp = await sendJson(
+                    { write: { fid, addr: offset, size: chunk.length } },
+                    chunk  // Binary payload
+                );
+
+                const ack = writeResp.json['^write'];
+                if (!ack) {
+                    throw new Error('Write failed: malformed response from Deluge');
                 }
-                
-                throw new Error(errMsg);
+
+                if (ack.err !== 0) {
+                    const errCode = ack.err;
+                    let errMsg = 'Write error: ' + errCode;
+
+                    // Provide helpful error messages for common error codes
+                    if (errCode === 9) {
+                        errMsg = 'Write failed: No SD card detected or SD card is write-protected. Please check your SD card and try again.';
+                    } else if (errCode === 2) {
+                        errMsg = 'Write failed: File not found or permission denied.';
+                    } else if (errCode === 5) {
+                        errMsg = 'Write failed: SD card is full or out of space.';
+                    }
+
+                    throw new Error(errMsg);
+                }
+
+                // A short write is NOT reported as an error by the firmware.
+                // writeBlock() writes however many bytes survived the transfer
+                // and still replies err=0, echoing the real count in `size`.
+                // If part of the request was lost in transit the Deluge happily
+                // commits a partial chunk, so this MUST be checked - otherwise
+                // the file ends up holed with zeros and only fails later, when
+                // the Deluge tries to load it (E365).
+                written = ack.size;
+                if (written === chunk.length) {
+                    break;
+                }
+
+                console.warn('Short write at offset ' + offset + ': Deluge stored '
+                    + written + ' of ' + chunk.length + ' bytes - retrying chunk');
             }
-            
+
+            if (written !== chunk.length) {
+                throw new Error('Write failed at offset ' + offset + ': Deluge only stored '
+                    + written + ' of ' + chunk.length + ' bytes after '
+                    + WRITE_CHUNK_ATTEMPTS + ' attempts. File not written.');
+            }
+
             offset += size;
         }
         
@@ -763,25 +800,26 @@ async function writeFile(path, data) {
         // Delay to ensure SD card flush (Deluge filesystem needs time, especially on slower SD cards)
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Verify the file was written by checking it exists (with retry)
-        console.log('Verifying file was written...');
-        let exists = false;
-        let retries = 3;
-        while (!exists && retries > 0) {
-            exists = await fileExists(path);
-            if (!exists && retries > 1) {
-                console.log(`File not found yet, retrying... (${retries - 1} attempts remaining)`);
-                await new Promise(resolve => setTimeout(resolve, 300)); // Additional delay before retry
-                clearDirectoryCache(dirPath); // Clear cache again before retry
+        // Verify by reading the file back and comparing every byte.
+        // Checking only that the file exists is not enough: the Deluge will
+        // happily create a correctly named, correctly sized file whose contents
+        // are partly zeros, and the damage only surfaces when it fails to load.
+        console.log('Verifying file contents...');
+        const readBack = await readFile(path, { silent: true });
+
+        if (readBack.length !== bytes.length) {
+            throw new Error('Verification failed: wrote ' + bytes.length
+                + ' bytes but read back ' + readBack.length + '. File is corrupt on the SD card.');
+        }
+
+        for (let i = 0; i < bytes.length; i++) {
+            if (readBack[i] !== bytes[i]) {
+                throw new Error('Verification failed: file differs from what was sent, first at byte '
+                    + i + '. File is corrupt on the SD card.');
             }
-            retries--;
         }
-        
-        if (!exists) {
-            throw new Error('Verification failed: File does not exist after write. SD card may be slow or write-protected.');
-        }
-        
-        console.log('File written and verified successfully:', path);
+
+        console.log('File written and verified byte-for-byte:', path);
         
         hideCommIndicator();
         return { success: true };
@@ -795,9 +833,13 @@ async function writeFile(path, data) {
 /**
  * Read a complete file from Deluge with proper chunking
  */
-async function readFile(path) {
-    showCommIndicator();
-    
+async function readFile(path, { silent = false } = {}) {
+    // `silent` is for callers that are already inside their own comm indicator
+    // (writeFile's read-back verification), so it isn't dismissed early.
+    if (!silent) {
+        showCommIndicator();
+    }
+
     try {
         console.log('Reading file:', path);
         
@@ -836,10 +878,14 @@ async function readFile(path) {
         await sendJson({ close: { fid } });
         console.log('File read successfully');
         
-        hideCommIndicator();
+        if (!silent) {
+            hideCommIndicator();
+        }
         return result;
     } catch (error) {
-        hideCommIndicator();
+        if (!silent) {
+            hideCommIndicator();
+        }
         console.error('Error during read:', error);
         throw error;
     }
