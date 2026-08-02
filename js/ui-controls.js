@@ -351,6 +351,136 @@ function renderPatchCables() {
 
 
 // ============================================================================
+// SLIDER READOUTS
+// ============================================================================
+
+// Show a full-scale slider's position in the units the Deluge displays.
+function updateSliderReadout(param) {
+    const readout = document.getElementById(param + 'Readout');
+    if (!readout) return;
+
+    const pos = parseInt(currentState[param], 10);
+    readout.textContent = Number.isNaN(pos) ? '-' : sliderReadouts[param](pos);
+}
+
+// ============================================================================
+// GOLD KNOB ASSIGNMENTS
+// ============================================================================
+
+// Turn a camelCase param name into a label. Splitting on every capital alone
+// gives "Volume Post F X" and "Lpf Frequency", so keep runs of capitals
+// together and restore the ones that are really acronyms.
+function formatParamLabel(name) {
+    const spaced = name
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+    return (spaced.charAt(0).toUpperCase() + spaced.slice(1))
+        .replace(/\b(Lpf|Hpf|Fx|Lfo|Mpe|Osc)(\d*)\b/g, m => m.toUpperCase());
+}
+
+function updateModKnob(index, field, value) {
+    if (!modKnobs[index]) modKnobs[index] = { ...DEFAULT_MOD_KNOBS[index] };
+
+    // An empty source means "plain parameter control", which the file format
+    // expresses by leaving the attribute off entirely rather than by writing
+    // "none" - stringToSource would map that to NOT_AVAILABLE anyway, but the
+    // Deluge never writes it and neither should we.
+    if (field !== 'controlsParam' && !value) {
+        delete modKnobs[index][field];
+    } else {
+        modKnobs[index][field] = value;
+    }
+
+    // A second source is only meaningful on top of a first one.
+    if (field === 'patchAmountFromSource' && !value) {
+        delete modKnobs[index].patchAmountFromSecondSource;
+        renderModKnobs();
+    }
+}
+
+function resetModKnobs() {
+    modKnobs = DEFAULT_MOD_KNOBS.map(knob => ({ ...knob }));
+    renderModKnobs();
+    showNotification('✓ Gold knobs reset to Deluge defaults');
+}
+
+function renderModKnobs() {
+    const container = document.getElementById('modKnobsContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    MOD_KNOB_PAGES.forEach((pageName, page) => {
+        const group = document.createElement('div');
+        group.className = 'mod-knob-page';
+
+        const heading = document.createElement('div');
+        heading.className = 'mod-knob-page-title';
+        heading.textContent = `${page + 1}. ${pageName}`;
+        group.appendChild(heading);
+
+        // Knob 1 is the top knob, knob 0 the bottom one, but the file stores
+        // bottom first. Show them top-first to match the hardware layout.
+        [1, 0].forEach(which => {
+            const index = page * 2 + which;
+            const knob = modKnobs[index] || DEFAULT_MOD_KNOBS[index];
+
+            const row = document.createElement('div');
+            row.className = 'mod-knob-row';
+
+            const label = document.createElement('span');
+            label.className = 'mod-knob-label';
+            label.textContent = which === 1 ? 'Top' : 'Bottom';
+            row.appendChild(label);
+
+            const paramSelect = document.createElement('select');
+            modKnobParams.forEach(param => {
+                const option = document.createElement('option');
+                option.value = param;
+                option.textContent = formatParamLabel(param);
+                if (param === knob.controlsParam) option.selected = true;
+                paramSelect.appendChild(option);
+            });
+            paramSelect.onchange = (e) => updateModKnob(index, 'controlsParam', e.target.value);
+            row.appendChild(paramSelect);
+
+            // Optional: make the knob control a patch cable's depth instead of
+            // the parameter directly, the way the default Reverb/Sidechain and
+            // LFO/Pitch knobs do.
+            const sourceSelect = document.createElement('select');
+            sourceSelect.title = 'Control this parameter’s modulation depth from this source, instead of the parameter itself';
+            ['', ...modSources.filter(s => s !== 'none')].forEach(source => {
+                const option = document.createElement('option');
+                option.value = source;
+                option.textContent = source ? 'from ' + source : 'direct';
+                if (source === (knob.patchAmountFromSource || '')) option.selected = true;
+                sourceSelect.appendChild(option);
+            });
+            sourceSelect.onchange = (e) => updateModKnob(index, 'patchAmountFromSource', e.target.value);
+            row.appendChild(sourceSelect);
+
+            if (knob.patchAmountFromSource) {
+                const secondSelect = document.createElement('select');
+                secondSelect.title = 'Second modulation source, for a cable modulating another cable';
+                ['', ...modSources.filter(s => s !== 'none')].forEach(source => {
+                    const option = document.createElement('option');
+                    option.value = source;
+                    option.textContent = source ? '+ ' + source : '(none)';
+                    if (source === (knob.patchAmountFromSecondSource || '')) option.selected = true;
+                    secondSelect.appendChild(option);
+                });
+                secondSelect.onchange = (e) => updateModKnob(index, 'patchAmountFromSecondSource', e.target.value);
+                row.appendChild(secondSelect);
+            }
+
+            group.appendChild(row);
+        });
+
+        container.appendChild(group);
+    });
+}
+
+// ============================================================================
 // DX7 UI TOGGLE
 // ============================================================================
 

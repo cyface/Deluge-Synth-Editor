@@ -82,8 +82,10 @@ async function sendToDeluge() {
 // ============================================================================
 
 function syncUIToState() {
-    // Sync all select/input elements to state
-    const inputs = document.querySelectorAll('select, input[type="number"], input[type="text"]');
+    // Sync all select/input elements to state. Range inputs carry the audio
+    // compressor's raw knob positions, so they hold the file value directly
+    // rather than a percentage - no conversion, no rounding drift.
+    const inputs = document.querySelectorAll('select, input[type="number"], input[type="text"], input[type="range"]');
     inputs.forEach(input => {
         if (input.id && input.id !== 'presetName' && input.id !== 'xmlFileInput') {
             currentState[input.id] = readInputValue(input);
@@ -294,6 +296,21 @@ function generateXML() {
         xml += `\n\t\trelease="${currentState.sidechainRelease}" />\n`;
     }
 
+    // Audio compressor and stutter config. The Deluge writes both
+    // unconditionally for every sound (mod_controllable_audio.cpp:471-486), so
+    // write them unconditionally too rather than skipping them at defaults -
+    // the defaults here match the firmware's and are inert.
+    xml += `\t<audioCompressor\n\t\tattack="${currentState.compAttack}"`;
+    xml += `\n\t\trelease="${currentState.compRelease}"`;
+    xml += `\n\t\tthresh="${currentState.compThresh}"`;
+    xml += `\n\t\tratio="${currentState.compRatio}"`;
+    xml += `\n\t\tcompHPF="${currentState.compHPF}"`;
+    xml += `\n\t\tcompBlend="${currentState.compBlend}" />\n`;
+
+    xml += `\t<stutter\n\t\tquantized="${currentState.stutterQuantized}"`;
+    xml += `\n\t\treverse="${currentState.stutterReverse}"`;
+    xml += `\n\t\tpingPong="${currentState.stutterPingPong}" />\n`;
+
     // Default parameters
     xml += '\t<defaultParams';
     xml += `\n\t\tarpeggiatorGate="${currentState.arpeggiatorGate}"`;
@@ -417,21 +434,52 @@ function generateXML() {
 
     xml += '\t</defaultParams>\n';
 
-    // Arpeggiator - no UI, so replay the source file's settings when there were
-    // any, and fall back to a disabled arpeggiator for a brand new preset.
-    const arp = passThroughData.arpeggiatorAttributes
-        || { mode: 'off', numOctaves: '2', syncLevel: '7', syncType: '0' };
+    // Arpeggiator. "mode" duplicates "arpMode" because that is what the Deluge
+    // writes; current firmware reads arpMode and ignores mode entirely unless
+    // the file declares a firmware below c1.1.0.
     xml += '\t<arpeggiator';
-    for (const [key, value] of Object.entries(arp)) {
+    xml += `\n\t\tmode="${currentState.arpMode}"`;
+    xml += `\n\t\tsyncLevel="${currentState.arpSyncLevel}"`;
+    xml += `\n\t\tnumOctaves="${currentState.arpNumOctaves}"`;
+    xml += `\n\t\tsyncType="${currentState.arpSyncType}"`;
+    xml += `\n\t\tarpMode="${currentState.arpMode}"`;
+    xml += `\n\t\tchordType="${currentState.arpChordType}"`;
+    xml += `\n\t\tnoteMode="${currentState.arpNoteMode}"`;
+    xml += `\n\t\toctaveMode="${currentState.arpOctaveMode}"`;
+    xml += `\n\t\tmpeVelocity="${currentState.arpMpeVelocity}"`;
+    xml += `\n\t\tstepRepeat="${currentState.arpStepRepeat}"`;
+    xml += `\n\t\trandomizerLock="${currentState.arpRandomizerLock}"`;
+    xml += `\n\t\tkitArp="${currentState.arpKitArp}"`;
+
+    // Replay the locked probability arrays, notePattern and anything else we
+    // have no UI for, so a randomizer-locked arp survives a round trip.
+    for (const [key, value] of Object.entries(passThroughData.arpeggiatorAttributes || {})) {
         xml += `\n\t\t${key}="${value}"`;
     }
     xml += ' />\n';
 
-    // Replay whole elements we don't recognize: <modKnobs>, <midiOutput>,
-    // <audioCompressor>, <stutter>, and whatever a future firmware adds.
-    // Note modKnobs is deliberately NOT synthesized for new presets - the Deluge
-    // assigns sensible hardware knob defaults, and writing our own interferes
-    // with parameter control. Preserving one that already exists is different.
+    // Gold knob assignments. Position in the list is what binds an entry to a
+    // knob, so always write the full 16 - a short list would shift every
+    // assignment after the gap onto the wrong knob.
+    xml += '\t<modKnobs>\n';
+    for (let i = 0; i < DEFAULT_MOD_KNOBS.length; i++) {
+        const knob = modKnobs[i] || DEFAULT_MOD_KNOBS[i];
+        xml += `\t\t<modKnob controlsParam="${knob.controlsParam}"`;
+        if (knob.patchAmountFromSource) {
+            xml += ` patchAmountFromSource="${knob.patchAmountFromSource}"`;
+        }
+        if (knob.patchAmountFromSecondSource) {
+            xml += ` patchAmountFromSecondSource="${knob.patchAmountFromSecondSource}"`;
+        }
+        for (const [key, value] of Object.entries(passThroughData.modKnobExtras[i] || {})) {
+            xml += ` ${key}="${value}"`;
+        }
+        xml += ' />\n';
+    }
+    xml += '\t</modKnobs>\n';
+
+    // Replay whole elements we still don't recognize: <midiOutput> and whatever
+    // a future firmware adds.
     if (passThroughData.unknownTags) {
         xml += passThroughData.unknownTags;
     }
@@ -714,6 +762,28 @@ function parseXML(xmlString) {
         if (sidechain.hasAttribute('release')) currentState.sidechainRelease = sidechain.getAttribute('release');
     }
 
+    // Parse the audio compressor - a separate effect from the sidechain above
+    const audioCompressor = sound.querySelector('audioCompressor');
+    if (audioCompressor) {
+        const compAttr = (name, key) => {
+            if (audioCompressor.hasAttribute(name)) currentState[key] = audioCompressor.getAttribute(name);
+        };
+        compAttr('attack', 'compAttack');
+        compAttr('release', 'compRelease');
+        compAttr('thresh', 'compThresh');
+        compAttr('ratio', 'compRatio');
+        compAttr('compHPF', 'compHPF');
+        compAttr('compBlend', 'compBlend');
+    }
+
+    // Parse stutter config
+    const stutter = sound.querySelector('stutter');
+    if (stutter) {
+        if (stutter.hasAttribute('quantized')) currentState.stutterQuantized = stutter.getAttribute('quantized');
+        if (stutter.hasAttribute('reverse')) currentState.stutterReverse = stutter.getAttribute('reverse');
+        if (stutter.hasAttribute('pingPong')) currentState.stutterPingPong = stutter.getAttribute('pingPong');
+    }
+
     // Parse default params
     const defaultParams = sound.querySelector('defaultParams');
     if (defaultParams) {
@@ -809,13 +879,62 @@ function parseXML(xmlString) {
         }
     }
 
-    // Arpeggiator has no UI - keep the file's settings so they survive a re-save
+    // Arpeggiator
     const arpeggiator = sound.querySelector('arpeggiator');
     if (arpeggiator) {
+        const arpAttr = (name, key) => {
+            if (arpeggiator.hasAttribute(name)) currentState[key] = arpeggiator.getAttribute(name);
+        };
+        // Prefer arpMode, matching the firmware, but fall back to the old mode
+        // attribute so a pre-c1.1.0 file still shows the right on/off state.
+        arpAttr('mode', 'arpMode');
+        arpAttr('arpMode', 'arpMode');
+        arpAttr('noteMode', 'arpNoteMode');
+        arpAttr('octaveMode', 'arpOctaveMode');
+        arpAttr('numOctaves', 'arpNumOctaves');
+        arpAttr('syncLevel', 'arpSyncLevel');
+        arpAttr('syncType', 'arpSyncType');
+        arpAttr('chordType', 'arpChordType');
+        arpAttr('mpeVelocity', 'arpMpeVelocity');
+        arpAttr('stepRepeat', 'arpStepRepeat');
+        arpAttr('randomizerLock', 'arpRandomizerLock');
+        arpAttr('kitArp', 'arpKitArp');
+
+        // Everything else - the locked probability arrays and notePattern
         passThroughData.arpeggiatorAttributes = {};
         for (const attr of arpeggiator.attributes) {
-            passThroughData.arpeggiatorAttributes[attr.name] = attr.value;
+            if (!ARP_ATTRIBUTES.includes(attr.name)) {
+                passThroughData.arpeggiatorAttributes[attr.name] = attr.value;
+            }
         }
+    }
+
+    // Gold knob assignments. Only accept a full-length list: a short or
+    // malformed one would bind assignments to the wrong knobs, and the
+    // firmware defaults are a better answer than a misaligned guess.
+    const modKnobElements = sound.querySelectorAll('modKnobs > modKnob');
+    modKnobs = DEFAULT_MOD_KNOBS.map(knob => ({ ...knob }));
+    if (modKnobElements.length === DEFAULT_MOD_KNOBS.length) {
+        modKnobElements.forEach((el, i) => {
+            const knob = { controlsParam: el.getAttribute('controlsParam') || 'none' };
+            if (el.hasAttribute('patchAmountFromSource')) {
+                knob.patchAmountFromSource = el.getAttribute('patchAmountFromSource');
+            }
+            if (el.hasAttribute('patchAmountFromSecondSource')) {
+                knob.patchAmountFromSecondSource = el.getAttribute('patchAmountFromSecondSource');
+            }
+            modKnobs[i] = knob;
+
+            const extras = {};
+            for (const attr of el.attributes) {
+                if (!['controlsParam', 'patchAmountFromSource', 'patchAmountFromSecondSource'].includes(attr.name)) {
+                    extras[attr.name] = attr.value;
+                }
+            }
+            if (Object.keys(extras).length) passThroughData.modKnobExtras[i] = extras;
+        });
+    } else if (modKnobElements.length > 0) {
+        console.warn(`modKnobs has ${modKnobElements.length} entries, expected ${DEFAULT_MOD_KNOBS.length} - using firmware defaults`);
     }
 
     // Update UI with loaded values
@@ -846,7 +965,9 @@ function updateUIFromState() {
 
     // Update patch cables display
     renderPatchCables();
-    
+    renderModKnobs();
+    Object.keys(sliderReadouts).forEach(updateSliderReadout);
+
     // Show/hide DX7 panels based on oscillator types
     if (currentState.osc1Type === 'dx7') {
         const osc1Container = document.getElementById('osc1DX7Container');
@@ -886,6 +1007,7 @@ function resetToDefault() {
     if (confirm('Reset all parameters to default values?')) {
         currentState = { ...defaultParams };
         patchCables = [];
+        modKnobs = DEFAULT_MOD_KNOBS.map(knob => ({ ...knob }));
         originalLoadedFilepath = null; // Clear since we're starting fresh
         
         // Clear pass-through data

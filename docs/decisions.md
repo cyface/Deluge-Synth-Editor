@@ -160,7 +160,96 @@ Two subtleties that caused real losses and will again if someone "tidies up":
 The test that matters: load a Deluge-authored preset, `generateXML()`, and
 diff every value. Current status against `Tim.XML` (5875 bytes, 204 values):
 zero lost, zero changed, zero added, and a second pass is byte-identical to the
-first. A brand new preset stays clean - 10 elements, no pass-through leakage.
+first. A brand new preset stays clean - no pass-through leakage.
+
+As controls get added, pass-through shrinks. `<audioCompressor>`, `<stutter>`,
+`<modKnobs>` and most of `<arpeggiator>` are now generated rather than replayed,
+so anything moved out of `passThroughData` must also be added to `SOUND_TAGS`
+(or `ARP_ATTRIBUTES`) - otherwise it gets written twice, once from state and
+once from the replay buffer.
+
+---
+
+## Enum attributes must use the firmware's exact strings
+
+**Decision: every `<option value>` that lands in the XML has to match the
+firmware's string table character-for-character. Check the table, don't guess
+from the label.**
+
+The Deluge does not reject an unrecognised enum string. `EnumStringMap`'s
+lookup (`util/container/enum_to_string_map.hpp:30-41`) falls through to
+`static_cast<Enum>(N - 1)` - **the last entry** - and carries on. There is no
+error, and the file still loads.
+
+Three options in the filter section were wrong, all silently:
+
+| Wrote | Valid strings | Resolved to |
+|---|---|---|
+| `lpfMode="SVF"` | `12dB` `24dB` `24dBDrive` `SVF_Band` `SVF_Notch` `HPLadder` `Off` | `Off` - low pass filter disabled |
+| `filterRoute="HPF2LPF"` | `L2H` `PARA` `H2L` | `H2L` |
+| `filterRoute="LPF2HPF"` | as above | `H2L` - the opposite routing |
+| `filterRoute="PARALLEL"` | as above | `H2L` - not parallel at all |
+
+Picking "SVF" for the LPF turned the filter off. Picking "Parallel" or
+"LPF to HPF" did nothing at all. The tables are in
+`model/mod_controllable/filters/filter_config.cpp:8-20` for filters,
+`util/functions.cpp:1104-1244` for the arpeggiator modes and patch sources, and
+`modulation/params/param.cpp:418-747` for `<modKnob controlsParam>`.
+
+This is the same failure mode as [`rangeAdjustable`](#rangeadjustable-on-patchcable-is-not-a-polarity-flag)
+and the `<unison num="0">` silence: a value the firmware accepts without
+complaint and then interprets as something the user did not ask for.
+
+**What would change this:** nothing. When adding a control backed by an enum,
+open the firmware's string table first.
+
+---
+
+## `controlsParam` is a different namespace from patch cable destinations
+
+`<modKnob controlsParam="...">` resolves through
+`fileStringToParam(Kind::UNPATCHED_SOUND, name, allowPatched=true)`, which
+reaches patched local params, patched global params **and** the shared unpatched
+set. `<patchCable destination="...">` reaches only the patched ones.
+
+So `volumePostFX`, `bitcrushAmount`, `portamento` and `compressorThreshold` are
+valid gold knob targets but not patch destinations, and `volume` resolves to a
+different param in each list. `modKnobParams` and `modDestinations` in
+`parameters.js` are deliberately separate lists for this reason - do not merge
+them. A name that does not resolve comes back as `GLOBAL_NONE` and the
+assignment is dropped on load, without an error.
+
+`<modKnobs>` is also **positional**: 8 mod-button pages x 2 knobs, flattened in
+order, bottom knob first. Nothing in an entry says which knob it belongs to. A
+list that is not exactly 16 long would bind every assignment after the gap to
+the wrong knob, so `parseXML` rejects a short or long list outright and falls
+back to the firmware defaults rather than guessing.
+
+---
+
+## Per-sound stutter settings are written but never take effect
+
+`<stutter quantized reverse pingPong>` round-trips correctly and the editor
+exposes it, but be honest about what it does on the hardware.
+
+`StutterConfig` has a fourth field, `useSongStutter`, which decides whether the
+sound's own settings are used at all:
+
+```cpp
+stutterer.beginStutter(..., stutterConfig.useSongStutter
+    ? currentSong->globalEffectable.stutterConfig : stutterConfig, ...)
+```
+(`mod_controllable_audio.cpp:1306`)
+
+That field is **never serialized**, and the reader sets it back to `true`
+every time it encounters a `<stutter>` tag
+(`mod_controllable_audio.cpp:762`). So after any load, the song's config wins
+and the three saved values are ignored until the user picks a direction other
+than "USE SONG" for that sound on the device - a choice which is itself not
+saved.
+
+This is firmware behaviour, not something the editor can fix, so the UI says so
+rather than implying the controls do more than they do.
 
 ---
 

@@ -421,6 +421,55 @@
             font-size: 14px;
         }
 
+        /* Gold knob assignments */
+        .mod-knob-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 15px;
+        }
+
+        .mod-knob-page {
+            padding: 12px;
+            background: #1a1a1a;
+            border-radius: 5px;
+        }
+
+        .mod-knob-page-title {
+            font-weight: 600;
+            color: var(--accent-color);
+            font-size: 0.85em;
+            margin-bottom: 10px;
+        }
+
+        .mod-knob-row {
+            display: grid;
+            grid-template-columns: 55px 1fr 1fr;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .mod-knob-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .mod-knob-label {
+            font-size: 0.8em;
+            color: #b0b0b0;
+        }
+
+        /* Compressor sliders read out in the units the Deluge shows */
+        .control-group input[type="range"] {
+            width: 100%;
+        }
+
+        .readout {
+            text-align: center;
+            margin-top: 5px;
+            font-size: 0.85em;
+            color: var(--accent-color);
+        }
+
         .file-input {
             margin: 15px 0;
         }
@@ -1380,11 +1429,17 @@
                 <div class="controls-grid">
                     <div class="control-group">
                         <label class="control-label">Mode</label>
+                        <!-- Values must match filterMap in the firmware's
+                             filter_config.cpp. "SVF" was not one of them and
+                             fell through to the last entry, Off - which turned
+                             the low pass filter off instead of switching it. -->
                         <select id="lpfMode">
                             <option value="12dB">12dB</option>
                             <option value="24dB" selected>24dB</option>
                             <option value="24dBDrive">24dB Drive</option>
-                            <option value="SVF">SVF</option>
+                            <option value="SVF_Band">SVF Band</option>
+                            <option value="SVF_Notch">SVF Notch</option>
+                            <option value="Off">Off</option>
                         </select>
                     </div>
                     <div class="control-group knob-container">
@@ -1413,7 +1468,11 @@
                         <select id="hpfMode">
                             <option value="12dB">12dB</option>
                             <option value="24dB">24dB</option>
+                            <option value="24dBDrive">24dB Drive</option>
                             <option value="HPLadder" selected>HP Ladder</option>
+                            <option value="SVF_Band">SVF Band</option>
+                            <option value="SVF_Notch">SVF Notch</option>
+                            <option value="Off">Off</option>
                         </select>
                     </div>
                     <div class="control-group knob-container">
@@ -1439,11 +1498,15 @@
                 <div class="controls-grid">
                     <div class="control-group">
                         <label class="control-label">Route</label>
+                        <!-- Values must match routeMap in the firmware's
+                             filter_config.cpp. An unrecognised string does not
+                             error, it silently resolves to the last enum entry
+                             (H2L), so a typo here would look like the control
+                             does nothing. -->
                         <select id="filterRoute">
-                            <option value="HPF2LPF">HPF to LPF</option>
-                            <option value="LPF2HPF">LPF to HPF</option>
-                            <option value="PARALLEL">Parallel</option>
-                            <option value="H2L">H2L</option>
+                            <option value="H2L" selected>HPF to LPF</option>
+                            <option value="L2H">LPF to HPF</option>
+                            <option value="PARA">Parallel</option>
                         </select>
                     </div>
                     <div class="control-group knob-container">
@@ -1724,7 +1787,15 @@
 
             <div class="section">
                 <h2 class="section-title">Sidechain</h2>
+                <p style="color: #888; font-size: 0.85em; margin: -5px 0 15px;">
+                    The ducking envelope follower. Separate from the Audio Compressor below.
+                </p>
                 <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Send Level</label>
+                        <input type="range" id="sidechainSend" min="0" max="2147483647" value="0">
+                        <div class="readout" id="sidechainSendReadout">Off</div>
+                    </div>
                     <div class="control-group">
                         <label class="control-label">Sync Level</label>
                         <input type="number" id="sidechainSyncLevel" value="6" min="0" max="23">
@@ -1751,6 +1822,183 @@
                     </div>
                 </div>
             </div>
+
+            <div class="section">
+                <h2 class="section-title">Audio Compressor</h2>
+                <p style="color: #888; font-size: 0.85em; margin: -5px 0 15px;">
+                    Per-sound dynamics. At Threshold 0% the compressor applies no
+                    gain reduction, which is the Deluge's own default.
+                </p>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Attack</label>
+                        <input type="range" id="compAttack" min="0" max="2147483647" value="83886080">
+                        <div class="readout" id="compAttackReadout">1.3 ms</div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Release</label>
+                        <input type="range" id="compRelease" min="0" max="2147483647" value="83886080">
+                        <div class="readout" id="compReleaseReadout">54 ms</div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Threshold</label>
+                        <input type="range" id="compThresh" min="0" max="2147483647" value="0">
+                        <div class="readout" id="compThreshReadout">0%</div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Ratio</label>
+                        <input type="range" id="compRatio" min="0" max="2147483647" value="1073741824">
+                        <div class="readout" id="compRatioReadout">4.0:1</div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sidechain HPF</label>
+                        <input type="range" id="compHPF" min="0" max="2147483647" value="0">
+                        <div class="readout" id="compHPFReadout">0 Hz</div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Blend</label>
+                        <input type="range" id="compBlend" min="0" max="2147483647" value="2147483647">
+                        <div class="readout" id="compBlendReadout">100% wet</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Stutter</h2>
+                <p style="color: #888; font-size: 0.85em; margin: -5px 0 15px;">
+                    Saved with the preset, but the firmware re-enables "use song
+                    stutter" whenever a preset is loaded, so these take effect
+                    only after you pick a direction for this sound on the Deluge.
+                    Stutter Rate is under Distortion above.
+                </p>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Quantized</label>
+                        <select id="stutterQuantized">
+                            <option value="1" selected>On</option>
+                            <option value="0">Off</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Reverse</label>
+                        <select id="stutterReverse">
+                            <option value="0" selected>Off</option>
+                            <option value="1">On</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Ping Pong</label>
+                        <select id="stutterPingPong">
+                            <option value="0" selected>Off</option>
+                            <option value="1">On</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Arpeggiator</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label class="control-label">Mode</label>
+                        <select id="arpMode">
+                            <option value="off" selected>Off</option>
+                            <option value="arp">Arp</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Note Mode</label>
+                        <select id="arpNoteMode">
+                            <option value="up" selected>Up</option>
+                            <option value="down">Down</option>
+                            <option value="upDown">Up/Down</option>
+                            <option value="asPlayed">As Played</option>
+                            <option value="random">Random</option>
+                            <option value="walk1">Walk 1</option>
+                            <option value="walk2">Walk 2</option>
+                            <option value="walk3">Walk 3</option>
+                            <option value="pattern">Pattern</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Octave Mode</label>
+                        <select id="arpOctaveMode">
+                            <option value="up" selected>Up</option>
+                            <option value="down">Down</option>
+                            <option value="upDown">Up/Down</option>
+                            <option value="alt">Alternate</option>
+                            <option value="random">Random</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Octaves</label>
+                        <input type="number" id="arpNumOctaves" value="2" min="1" max="8">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Level</label>
+                        <input type="number" id="arpSyncLevel" value="7" min="0" max="23">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Sync Type</label>
+                        <select id="arpSyncType">
+                            <option value="0" selected>Triplets/Dotted</option>
+                            <option value="1">Even</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Chord Type</label>
+                        <select id="arpChordType">
+                            <option value="0" selected>None</option>
+                            <option value="1">Fifth</option>
+                            <option value="2">Sus2</option>
+                            <option value="3">Minor</option>
+                            <option value="4">Major</option>
+                            <option value="5">Sus4</option>
+                            <option value="6">Minor 7</option>
+                            <option value="7">Dominant 7</option>
+                            <option value="8">Major 7</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Step Repeat</label>
+                        <input type="number" id="arpStepRepeat" value="1" min="1" max="8">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">MPE Velocity</label>
+                        <select id="arpMpeVelocity">
+                            <option value="off" selected>Off</option>
+                            <option value="y">MPE Y</option>
+                            <option value="z">Aftertouch</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Randomizer Lock</label>
+                        <select id="arpRandomizerLock">
+                            <option value="0" selected>Off</option>
+                            <option value="1">On</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Include in Kit Arp</label>
+                        <select id="arpKitArp">
+                            <option value="0" selected>Off</option>
+                            <option value="1">On</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="controls-grid" style="margin-top: 25px;">
+                    <div class="control-group knob-container">
+                        <label class="control-label">Rate</label>
+                        <div class="knob" id="arpeggiatorRateKnob" data-param="arpeggiatorRate" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="arpeggiatorRateValue">25</div>
+                    </div>
+                    <div class="control-group knob-container">
+                        <label class="control-label">Gate</label>
+                        <div class="knob" id="arpeggiatorGateKnob" data-param="arpeggiatorGate" data-min="0" data-max="50"></div>
+                        <div class="knob-value" id="arpeggiatorGateValue">25</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div id="modulation" class="tab-content">
@@ -1759,6 +2007,19 @@
                 <button onclick="addPatchCable()" style="margin-bottom: 15px;">+ Add Patch Cable</button>
                 <div id="patchCablesContainer" class="mod-matrix">
                     <!-- Patch cables will be added here dynamically -->
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Gold Knobs</h2>
+                <p style="color: #888; font-size: 0.85em; margin: -5px 0 15px;">
+                    What the two gold encoders control on each mod button page.
+                    Set a source to make a knob sweep that modulation's depth
+                    instead of the parameter itself.
+                </p>
+                <button onclick="resetModKnobs()" style="margin-bottom: 15px;">Reset to Deluge Defaults</button>
+                <div id="modKnobsContainer" class="mod-knob-grid">
+                    <!-- Gold knob assignments are added here dynamically -->
                 </div>
             </div>
         </div>

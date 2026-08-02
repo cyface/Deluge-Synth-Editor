@@ -140,18 +140,50 @@ const defaultParams = {
     bitCrush: '0x80000000',
     stutterRate: '0x00000000',
 
-    // Sidechain/Compressor
+    // Sidechain (the ducking envelope follower, <sidechain>)
     sidechainSend: '0',        // Sidechain send level (sound attribute)
     sidechainSyncLevel: '6',
     sidechainSyncType: '0',
     sidechainAttack: '327244',
     sidechainRelease: '936',
-    
+
+    // Audio compressor (<audioCompressor>) - a separate effect from the
+    // sidechain above. Every value is a knob position in 0 .. 2147483647
+    // (unsigned), NOT the signed hex scale <defaultParams> uses. Defaults match
+    // RMSFeedbackCompressor's constructor (dsp/compressor/rms_feedback.cpp:22),
+    // which is inert: thresh=0 means a threshold of 1.0, so nothing compresses.
+    compAttack: '83886080',
+    compRelease: '83886080',
+    compThresh: '0',
+    compRatio: '1073741824',
+    compHPF: '0',
+    compBlend: '2147483647',
+
+    // Stutter config (<stutter>) - 0/1 flags
+    stutterQuantized: '1',
+    stutterReverse: '0',
+    stutterPingPong: '0',
+
+
     // Clipping
     clippingAmount: '0',
     compressorShape: '0xDC28F5B2',
 
-    // Arpeggiator
+    // Arpeggiator (<arpeggiator>). arpMode is what current firmware reads;
+    // the older "mode" attribute is written alongside it from the same value
+    // (see generateXML) because the Deluge does, but it is only honoured on
+    // files declaring a firmware below c1.1.0 (arpeggiator.cpp:1747-1759).
+    arpMode: 'off',
+    arpNoteMode: 'up',
+    arpOctaveMode: 'up',
+    arpNumOctaves: '2',
+    arpSyncLevel: '7',
+    arpSyncType: '0',
+    arpChordType: '0',
+    arpMpeVelocity: 'off',
+    arpStepRepeat: '1',
+    arpRandomizerLock: '0',
+    arpKitArp: '0',
     arpeggiatorGate: '0x00000000',
     arpeggiatorRate: '0x00000000',
 
@@ -168,11 +200,16 @@ const defaultParams = {
 let currentState = { ...defaultParams };
 let patchCables = [];
 
+// Gold-knob assignments (<modKnobs>). 8 mod-button pages x 2 physical knobs,
+// written as a flat ordered list - position in the list is the only thing that
+// says which knob an entry belongs to, so the array is always exactly 16 long.
+let modKnobs = [];
+
 // Pass-through storage for parameters we don't have UI for.
 // This preserves data when loading and re-saving files - a Deluge-authored
-// preset carries a lot the editor has no controls for (audio compressor, mod
-// knob assignments, MIDI output config, arpeggiator probability params), and
-// dropping any of it on save would quietly damage the user's patch.
+// preset carries a lot the editor has no controls for (MIDI output config,
+// arpeggiator probability params), and dropping any of it on save would
+// quietly damage the user's patch.
 function emptyPassThroughData() {
     return {
         soundAttributes: {},        // Attributes on <sound> we don't edit
@@ -184,6 +221,7 @@ function emptyPassThroughData() {
         defaultParamsTags: '',      // Sub-tags inside <defaultParams> we don't edit
         arpeggiatorAttributes: null,// <arpeggiator> attributes, replayed verbatim
         hadSidechain: false,        // Source had a <sidechain>, so always write one back
+        modKnobExtras: {},          // Attributes on <modKnob> we don't edit, by index
         unknownTags: ''             // Whole <sound> child elements we don't recognize
     };
 }
@@ -218,7 +256,8 @@ const SOUND_ATTRIBUTES = [
 // Child elements of <sound> that generateXML() writes itself.
 const SOUND_TAGS = [
     'osc1', 'osc2', 'lfo1', 'lfo2', 'lfo3', 'lfo4', 'unison', 'delay',
-    'sidechain', 'compressor', 'defaultParams', 'arpeggiator'
+    'sidechain', 'compressor', 'defaultParams', 'arpeggiator',
+    'audioCompressor', 'stutter', 'modKnobs'
 ];
 
 // Child elements of <defaultParams> that generateXML() writes itself.
@@ -237,6 +276,93 @@ const modSources = [
     'envelope1', 'envelope2', 'envelope3', 'envelope4',
     'velocity', 'note', 'aftertouch', 'x', 'y',
     'compressor', 'random'
+];
+
+// <arpeggiator> attributes generateXML() writes itself. Everything else there -
+// the locked probability arrays, notePattern, and the lastLocked* values - is
+// preserved through passThroughData.arpeggiatorAttributes.
+const ARP_ATTRIBUTES = [
+    'mode', 'arpMode', 'noteMode', 'octaveMode', 'numOctaves',
+    'syncLevel', 'syncType', 'chordType', 'mpeVelocity',
+    'stepRepeat', 'randomizerLock', 'kitArp'
+];
+
+// Chord shapes the arpeggiator can play, indexed by chordType
+// (util/lookuptables/lookuptables.cpp:518).
+const ARP_CHORD_TYPES = [
+    'None', 'Fifth', 'Sus2', 'Minor', 'Major', 'Sus4', 'Minor 7',
+    'Dominant 7', 'Major 7'
+];
+
+// Parameters a gold knob can be assigned to, in <modKnob controlsParam="...">.
+//
+// This is a different namespace from modDestinations above. The firmware
+// resolves the string with fileStringToParam(Kind::UNPATCHED_SOUND, name,
+// allowPatched=true), which reaches patched local params, patched global params
+// and the shared unpatched set - so names like "volumePostFX", "bitcrushAmount"
+// and "portamento" are valid here but are not patch-cable destinations, while
+// "volume" means a different param in each list. Names below are taken verbatim
+// from paramNameForFileConst() in modulation/params/param.cpp; anything not in
+// this list reads back as GLOBAL_NONE and the assignment is silently discarded.
+const modKnobParams = [
+    'none',
+    // Patched local
+    'volume', 'pan', 'pitch',
+    'oscAVolume', 'oscAPitch', 'oscAPhaseWidth', 'oscAWavetablePosition',
+    'oscBVolume', 'oscBPitch', 'oscBPhaseWidth', 'oscBWavetablePosition',
+    'noiseVolume',
+    'lpfFrequency', 'lpfResonance', 'lpfMorph',
+    'hpfFrequency', 'hpfResonance', 'hpfMorph',
+    'lfo2Rate', 'lfo4Rate',
+    'env1Attack', 'env1Decay', 'env1Sustain', 'env1Release',
+    'env2Attack', 'env2Decay', 'env2Sustain', 'env2Release',
+    'env3Attack', 'env3Decay', 'env3Sustain', 'env3Release',
+    'env4Attack', 'env4Decay', 'env4Sustain', 'env4Release',
+    'modulator1Volume', 'modulator1Pitch', 'modulator1Feedback',
+    'modulator2Volume', 'modulator2Pitch', 'modulator2Feedback',
+    'carrier1Feedback', 'carrier2Feedback', 'waveFold',
+    // Patched global
+    'volumePostFX', 'volumePostReverbSend',
+    'lfo1Rate', 'lfo3Rate',
+    'modFXRate', 'modFXDepth',
+    'delayRate', 'delayFeedback', 'reverbAmount', 'arpRate',
+    // Unpatched, shared between sounds and the song
+    'portamento', 'stutterRate', 'sampleRateReduction', 'bitcrushAmount',
+    'modFXOffset', 'modFXFeedback',
+    'bass', 'treble', 'bassFreq', 'trebleFreq',
+    'compressorShape', 'compressorThreshold',
+    'arpGate', 'noteProbability', 'bassProbability', 'swapProbability',
+    'glideProbability', 'reverseProbability', 'chordPolyphony',
+    'chordProbability', 'ratchetProbability', 'ratchetAmount',
+    'sequenceLength', 'rhythm', 'spreadGate', 'spreadOctave', 'spreadVelocity'
+];
+
+// The eight mod-button pages, in the order <modKnobs> serializes them.
+const MOD_KNOB_PAGES = [
+    'Master (Volume/Pan)', 'Filters (LPF)', 'Envelope 1', 'Delay',
+    'Reverb / Sidechain', 'LFO / Pitch', 'Stutter / Portamento', 'Distortion'
+];
+
+// What the Deluge assigns when it builds a Sound from scratch
+// (processing/sound/sound.cpp:97-122). Index = page * 2 + knob, knob 0 is the
+// bottom knob and 1 is the top one - the same order the file uses.
+const DEFAULT_MOD_KNOBS = [
+    { controlsParam: 'pan' },
+    { controlsParam: 'volumePostFX' },
+    { controlsParam: 'lpfResonance' },
+    { controlsParam: 'lpfFrequency' },
+    { controlsParam: 'env1Release' },
+    { controlsParam: 'env1Attack' },
+    { controlsParam: 'delayFeedback' },
+    { controlsParam: 'delayRate' },
+    { controlsParam: 'reverbAmount' },
+    { controlsParam: 'volumePostReverbSend', patchAmountFromSource: 'compressor' },
+    { controlsParam: 'pitch', patchAmountFromSource: 'lfo1' },
+    { controlsParam: 'lfo1Rate' },
+    { controlsParam: 'portamento' },
+    { controlsParam: 'stutterRate' },
+    { controlsParam: 'bitcrushAmount' },
+    { controlsParam: 'sampleRateReduction' }
 ];
 
 const modDestinations = [
@@ -292,6 +418,34 @@ function readInputValue(input) {
     }
     return String(clamped);
 }
+
+// Full-scale knob position for the params that slide rather than turn. Unlike
+// <defaultParams>, these run 0 .. ONE_Q31 rather than spanning the signed range,
+// so the hex conversions above do not apply to them.
+const SLIDER_KNOB_MAX = 2147483647;
+
+// Human-readable versions of those knob positions, using the firmware's own
+// mappings so the numbers match what the Deluge displays
+// (dsp/compressor/rms_feedback.h, the set* functions).
+const sliderReadouts = {
+    // attackMS = 0.5 + (exp(2x) - 1) * 10
+    compAttack: pos => (0.5 + (Math.exp(2 * pos / SLIDER_KNOB_MAX) - 1) * 10).toFixed(1) + ' ms',
+    // releaseMS = 50 + (exp(2x) - 1) * 50
+    compRelease: pos => (50 + (Math.exp(2 * pos / SLIDER_KNOB_MAX) - 1) * 50).toFixed(0) + ' ms',
+    // threshold = 1 - 0.8x, so a higher knob position compresses sooner
+    compThresh: pos => (100 * pos / SLIDER_KNOB_MAX).toFixed(0) + '%',
+    // ratio = 1 / (1 - (0.5 + x/2)), i.e. 2:1 at zero rising steeply near full
+    compRatio: pos => {
+        const fraction = 0.5 + (pos / SLIDER_KNOB_MAX) / 2;
+        const ratio = 1 / (1 - fraction);
+        return (ratio >= 100 ? '∞' : ratio.toFixed(1)) + ':1';
+    },
+    // fc_hz = (exp(1.5x) - 1) * 30
+    compHPF: pos => ((Math.exp(1.5 * pos / SLIDER_KNOB_MAX) - 1) * 30).toFixed(0) + ' Hz',
+    compBlend: pos => (100 * pos / SLIDER_KNOB_MAX).toFixed(0) + '% wet',
+    // The Deluge shows this on its own 0-50 menu scale (gui/menu_item/sidechain/send.h:33)
+    sidechainSend: pos => pos === 0 ? 'Off' : (50 * pos / SLIDER_KNOB_MAX).toFixed(0) + ' / 50'
+};
 
 // Convert UI value (-50 to 50) to Deluge hex format (signed 32-bit)
 function uiToHex(value, min = -50, max = 50) {

@@ -241,8 +241,8 @@ See [SYSEX_SETUP.md](SYSEX_SETUP.md) for detailed SYSEX troubleshooting.
 - **Envelopes**: ENV1-4 with **live animated ADSR displays**
 - **Filters**: LPF/HPF with frequency, resonance, morphing, routing
 - **LFOs**: LFO1-2 with type, rate, and sync options
-- **Effects**: Master volume/pan, ModFX, delay, reverb, EQ, distortion, sidechain
-- **Modulation**: Patch cable matrix - route any source to any destination
+- **Effects**: Master volume/pan, ModFX, delay, reverb, EQ, distortion, sidechain, audio compressor, stutter, arpeggiator
+- **Modulation**: Patch cable matrix plus gold knob assignments for all 8 mod button pages
 - **PatchMorph**: Intelligent patch randomization with oscillator type selection, filter/envelope/FX/modulation controls, master slider, and smart naming
 
 ## Supported Parameters
@@ -260,7 +260,11 @@ See [SYSEX_SETUP.md](SYSEX_SETUP.md) for detailed SYSEX troubleshooting.
 - All effects: ModFX (all types), delay, reverb, EQ, distortion
 - Modulation matrix: Complete patch cable system with all sources/destinations
 - Master: Volume, pan, portamento
-- Sidechain/Compressor: Sync, attack, release
+- Sidechain: Send level, sync, attack, release, shape
+- Audio compressor: Attack, release, threshold, ratio, sidechain HPF, blend - each shown in the units the Deluge displays
+- Stutter: Quantized, reverse, ping pong (see note below)
+- Arpeggiator: Mode, note mode, octave mode, octaves, sync, chord type, step repeat, MPE velocity, randomizer lock, rate, gate
+- Gold knobs: Both encoders on all 8 mod button pages, optionally sweeping a modulation depth instead of the parameter
 
 ### ✅ **Supported (Read/Write, No UI)**
 Preserved when loading and saving files:
@@ -269,9 +273,9 @@ Preserved when loading and saving files:
 - Sample-specific: Loop mode, reversed, time stretch, interpolation, sample zones
 - DX7 patches (156-byte hex data)
 - Multi-sampling and multi-wavetable ranges
-- MIDI knobs and Mod knobs
+- MIDI output channel/note
+- Arpeggiator randomizer-locked probability arrays and note pattern
 - Clipping amount
-- Sidechain send level
 
 ### ❌ **Not Supported**
 - **Kit Presets** - This editor is for synth presets only
@@ -279,8 +283,9 @@ Preserved when loading and saving files:
 - **Multi-sample Editing** - Multiple sample ranges preserved but not editable
 - **Sample Zone Editing** - Start/end points, loop points preserved but not editable
 - **MIDI Learn** - MIDI controller mappings preserved but not editable
-- **Arpeggiator Patterns** - Basic arp parameters only, no pattern editing
+- **Arpeggiator Patterns** - Arp settings are editable, but the randomizer-locked probability arrays and note pattern are preserved rather than edited
 - **Real-time Parameter Updates** - Requires manual patch reload on Deluge (firmware limitation)
+- **Per-sound stutter direction** - The three stutter flags save and reload correctly, but the firmware re-enables "use song stutter" on every load, so they only take effect after you pick a direction for that sound on the device
 
 ## Firmware Compatibility
 
@@ -324,7 +329,7 @@ Preserved when loading and saving files:
 - Supports both old format (nested tags) and new format (attributes)
 
 ### Data Preservation
-- **Pass-through system** preserves everything the editor has no UI for: `<modKnobs>`, `<midiOutput>`, `<audioCompressor>`, `<stutter>`, sample zones, DX7 data, the arpeggiator probability/spread params, and any attribute a newer firmware adds
+- **Pass-through system** preserves everything the editor has no UI for: `<midiOutput>`, sample zones, DX7 data, the arpeggiator probability/spread arrays, and any attribute a newer firmware adds
 - Load → Edit → Save = No data loss, and repeated saves are byte-stable
 - Verified against a Deluge-authored preset: all 204 values survive the round trip unchanged
 
