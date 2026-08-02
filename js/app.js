@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     inputs.forEach(input => {
         if (input.id && input.id !== 'presetName' && input.id !== 'xmlFileInput') {
             input.addEventListener('change', () => {
-                currentState[input.id] = input.value;
+                currentState[input.id] = readInputValue(input);
 
                 // Redraw envelopes if envelope parameter changed
                 if (input.id.startsWith('env')) {

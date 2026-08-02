@@ -211,6 +211,36 @@ const modDestinations = [
 // VALUE CONVERSION FUNCTIONS
 // ============================================================================
 
+// Read an input's value, held to the min/max it declares.
+//
+// The browser only enforces min/max on the spinner arrows and on form
+// submission. Nothing here submits a form, so a typed-in out-of-range value
+// stays in .value and lands in the preset unchanged. That is how a
+// <unison num="0" /> gets written past min="1" - the Deluge loads the file
+// happily and then renders no unison voices at all, so the preset is silent.
+function readInputValue(input) {
+    if (input.type !== 'number' || input.value === '') {
+        return input.value;
+    }
+
+    const value = parseFloat(input.value);
+    if (Number.isNaN(value)) {
+        return input.value;
+    }
+
+    const min = parseFloat(input.min);
+    const max = parseFloat(input.max);
+    let clamped = value;
+    if (!Number.isNaN(min) && clamped < min) clamped = min;
+    if (!Number.isNaN(max) && clamped > max) clamped = max;
+
+    // Reflect the correction back so the UI can't disagree with what we save.
+    if (clamped !== value) {
+        input.value = clamped;
+    }
+    return String(clamped);
+}
+
 // Convert UI value (-50 to 50) to Deluge hex format (signed 32-bit)
 function uiToHex(value, min = -50, max = 50) {
     // Normalize to 0-1 range

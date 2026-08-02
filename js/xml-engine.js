@@ -86,7 +86,7 @@ function syncUIToState() {
     const inputs = document.querySelectorAll('select, input[type="number"], input[type="text"]');
     inputs.forEach(input => {
         if (input.id && input.id !== 'presetName' && input.id !== 'xmlFileInput') {
-            currentState[input.id] = input.value;
+            currentState[input.id] = readInputValue(input);
         }
     });
 }
