@@ -253,11 +253,14 @@ function drawEnvelope(canvasId, attack, decay, sustain, release, sustainMin = 0,
 // ============================================================================
 
 function addPatchCable() {
+    // No polarity: the firmware defaults it per modulation source, which is a
+    // better choice than any we can make without UI for it. (rangeAdjustable
+    // used to be set here in the belief it meant "bipolar" - it does not, see
+    // the patchCable notes in generateXML.)
     const cable = {
         source: 'velocity',
         destination: 'volume',
-        amount: '0x3FFFFFE8',
-        rangeAdjustable: '1'  // Bipolar (-50 to +50)
+        amount: '0x3FFFFFE8'
     };
 
     patchCables.push(cable);

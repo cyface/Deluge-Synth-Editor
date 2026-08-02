@@ -168,16 +168,68 @@ const defaultParams = {
 let currentState = { ...defaultParams };
 let patchCables = [];
 
-// Pass-through storage for parameters we don't have UI for
-// This preserves data when loading and re-saving files
-let passThroughData = {
-    soundAttributes: {},  // Attributes on <sound> tag we don't edit
-    osc1Attributes: {},   // Attributes on <osc1> we don't edit
-    osc2Attributes: {},   // Attributes on <osc2> we don't edit
-    osc1SubTags: '',      // Sub-tags inside <osc1> (like <zone>, <sampleRanges>)
-    osc2SubTags: '',      // Sub-tags inside <osc2>
-    unknownTags: ''       // Any tags we don't recognize
-};
+// Pass-through storage for parameters we don't have UI for.
+// This preserves data when loading and re-saving files - a Deluge-authored
+// preset carries a lot the editor has no controls for (audio compressor, mod
+// knob assignments, MIDI output config, arpeggiator probability params), and
+// dropping any of it on save would quietly damage the user's patch.
+function emptyPassThroughData() {
+    return {
+        soundAttributes: {},        // Attributes on <sound> we don't edit
+        osc1Attributes: {},         // Attributes on <osc1> we don't edit
+        osc2Attributes: {},         // Attributes on <osc2> we don't edit
+        osc1SubTags: '',            // Sub-tags inside <osc1> (like <zone>, <sampleRanges>)
+        osc2SubTags: '',            // Sub-tags inside <osc2>
+        defaultParamsAttributes: {},// Attributes on <defaultParams> we don't edit
+        defaultParamsTags: '',      // Sub-tags inside <defaultParams> we don't edit
+        arpeggiatorAttributes: null,// <arpeggiator> attributes, replayed verbatim
+        hadSidechain: false,        // Source had a <sidechain>, so always write one back
+        unknownTags: ''             // Whole <sound> child elements we don't recognize
+    };
+}
+
+let passThroughData = emptyPassThroughData();
+
+// Attributes on <defaultParams> that generateXML() writes itself. Anything else
+// found there is preserved via passThroughData.defaultParamsAttributes.
+const DEFAULT_PARAM_ATTRIBUTES = [
+    'arpeggiatorGate', 'portamento', 'compressorShape',
+    'oscAVolume', 'oscAPulseWidth', 'oscAWavetablePosition',
+    'oscBVolume', 'oscBPulseWidth', 'oscBWavetablePosition',
+    'noiseVolume', 'volume', 'pan',
+    'lpfFrequency', 'lpfResonance', 'lpfMorph',
+    'hpfFrequency', 'hpfResonance', 'hpfMorph',
+    'lfo1Rate', 'lfo2Rate', 'lfo3Rate', 'lfo4Rate',
+    'modulator1Amount', 'modulator1Feedback',
+    'modulator2Amount', 'modulator2Feedback',
+    'carrier1Feedback', 'carrier2Feedback',
+    'modFXRate', 'modFXDepth', 'modFXOffset', 'modFXFeedback',
+    'delayRate', 'delayFeedback', 'reverbAmount', 'arpeggiatorRate',
+    'stutterRate', 'sampleRateReduction', 'bitCrush', 'waveFold'
+];
+
+// Attributes on <sound> that generateXML() writes itself.
+const SOUND_ATTRIBUTES = [
+    'firmwareVersion', 'earliestCompatibleFirmware', 'polyphonic', 'voicePriority',
+    'sideChainSend', 'mode', 'transpose', 'modFXType', 'lpfMode', 'hpfMode',
+    'filterRoute', 'clippingAmount', 'maxVoices'
+];
+
+// Child elements of <sound> that generateXML() writes itself.
+const SOUND_TAGS = [
+    'osc1', 'osc2', 'lfo1', 'lfo2', 'lfo3', 'lfo4', 'unison', 'delay',
+    'sidechain', 'compressor', 'defaultParams', 'arpeggiator'
+];
+
+// Child elements of <defaultParams> that generateXML() writes itself.
+const DEFAULT_PARAM_TAGS = [
+    'envelope1', 'envelope2', 'envelope3', 'envelope4', 'patchCables', 'equalizer'
+];
+
+// Child elements of <osc1>/<osc2> that old-format files use to hold values the
+// parser reads directly. Excluded from sub-tag pass-through to avoid writing
+// them twice.
+const OSC_VALUE_TAGS = ['type', 'transpose', 'cents', 'retrigPhase', 'oscillatorSync'];
 
 // Modulation sources and destinations
 const modSources = [

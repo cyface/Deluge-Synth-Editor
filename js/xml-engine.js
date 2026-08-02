@@ -91,6 +91,31 @@ function syncUIToState() {
     });
 }
 
+// Serialize an element back to XML text, indented to `depth` tabs. Used to
+// replay tags the editor has no UI for. Attribute order and whitespace may
+// differ from the source file, but no values are lost.
+function serializeElement(el, depth) {
+    const pad = '\t'.repeat(depth);
+    let out = pad + '<' + el.tagName;
+
+    for (const attr of el.attributes) {
+        out += '\n' + pad + '\t' + attr.name + '="' + attr.value + '"';
+    }
+
+    const children = [...el.children];
+    if (children.length === 0) {
+        // Old-format files store values as tag text rather than attributes.
+        const text = el.textContent.trim();
+        return text ? out + '>' + text + '</' + el.tagName + '>\n' : out + ' />\n';
+    }
+
+    out += '>\n';
+    children.forEach(child => {
+        out += serializeElement(child, depth + 1);
+    });
+    return out + pad + '</' + el.tagName + '>\n';
+}
+
 function generateXML() {
     syncUIToState();
 
@@ -125,7 +150,15 @@ function generateXML() {
         xml += `\n\tclippingAmount="${currentState.clippingAmount}"`;
     }
     
-    if (currentState.maxVoices !== '8') xml += `\n\tmaxVoices="${currentState.maxVoices}"`;
+    // The Deluge writes maxVoices unconditionally, so match it - omitting the
+    // default silently dropped the attribute when re-saving a Deluge preset.
+    xml += `\n\tmaxVoices="${currentState.maxVoices}"`;
+
+    // Replay <sound> attributes we have no UI for
+    for (const [key, value] of Object.entries(passThroughData.soundAttributes)) {
+        xml += `\n\t${key}="${value}"`;
+    }
+
     xml += '>\n';
 
     // Oscillator 1
@@ -162,8 +195,13 @@ function generateXML() {
     for (const [key, value] of Object.entries(passThroughData.osc1Attributes)) {
         xml += `\n\t\t${key}="${value}"`;
     }
-    
-    xml += ' />\n';
+
+    // Sub-tags like <zone> / <sampleRanges> have no UI - replay them verbatim
+    if (passThroughData.osc1SubTags) {
+        xml += '>\n' + passThroughData.osc1SubTags + '\t</osc1>\n';
+    } else {
+        xml += ' />\n';
+    }
 
     // Oscillator 2
     xml += `\t<osc2\n\t\ttype="${currentState.osc2Type}"`;
@@ -202,20 +240,23 @@ function generateXML() {
     for (const [key, value] of Object.entries(passThroughData.osc2Attributes)) {
         xml += `\n\t\t${key}="${value}"`;
     }
-    
-    xml += ' />\n';
+
+    if (passThroughData.osc2SubTags) {
+        xml += '>\n' + passThroughData.osc2SubTags + '\t</osc2>\n';
+    } else {
+        xml += ' />\n';
+    }
 
     // LFOs
     xml += `\t<lfo1 type="${currentState.lfo1Type}"`;
     xml += ` syncLevel="${currentState.lfo1SyncLevel}"`;
     xml += ` syncType="${currentState.lfo1SyncType}" />\n`;
 
+    // Written unconditionally like lfo1/3/4 - skipping them at the default value
+    // dropped the attributes when re-saving a Deluge preset.
     xml += `\t<lfo2 type="${currentState.lfo2Type}"`;
-    if (currentState.lfo2SyncLevel !== '0') {
-        xml += ` syncLevel="${currentState.lfo2SyncLevel}"`;
-        xml += ` syncType="${currentState.lfo2SyncType}"`;
-    }
-    xml += ' />\n';
+    xml += ` syncLevel="${currentState.lfo2SyncLevel}"`;
+    xml += ` syncType="${currentState.lfo2SyncType}" />\n`;
     
     // LFO3 and LFO4 (Community Firmware)
     xml += `\t<lfo3 type="${currentState.lfo3Type}"`;
@@ -229,10 +270,7 @@ function generateXML() {
     // Unison
     xml += `\t<unison num="${currentState.unisonNum}"`;
     xml += ` detune="${currentState.unisonDetune}"`;
-    if (currentState.unisonSpread !== '0') {
-        xml += ` spread="${currentState.unisonSpread}"`;
-    }
-    xml += ' />\n';
+    xml += ` spread="${currentState.unisonSpread}" />\n`;
 
     // Delay
     xml += `\t<delay\n\t\tpingPong="${currentState.delayPingPong}"`;
@@ -241,11 +279,14 @@ function generateXML() {
     xml += `\n\t\tsyncType="${currentState.delaySyncType}" />\n`;
 
     // Sidechain (formerly compressor) - only write if non-default values
-    const hasSidechain = currentState.sidechainSyncLevel !== '6' || 
+    // Also write it back if the source file had one, even at default values -
+    // otherwise re-saving a Deluge preset silently removes its <sidechain>.
+    const hasSidechain = passThroughData.hadSidechain ||
+                        currentState.sidechainSyncLevel !== '6' ||
                         currentState.sidechainSyncType !== '0' ||
                         currentState.sidechainAttack !== '327244' ||
                         currentState.sidechainRelease !== '936';
-    
+
     if (hasSidechain) {
         xml += `\t<sidechain\n\t\tsyncLevel="${currentState.sidechainSyncLevel}"`;
         xml += `\n\t\tsyncType="${currentState.sidechainSyncType}"`;
@@ -294,7 +335,15 @@ function generateXML() {
     xml += `\n\t\tbitCrush="${currentState.bitCrush}"`;
     xml += `\n\t\tmodFXOffset="${currentState.modFXOffset}"`;
     xml += `\n\t\tmodFXFeedback="${currentState.modFXFeedback}"`;
-    xml += `\n\t\twaveFold="${currentState.waveFold}">\n`;
+    xml += `\n\t\twaveFold="${currentState.waveFold}"`;
+
+    // Replay <defaultParams> attributes we have no UI for (compressorThreshold,
+    // the arpeggiator probability/spread set, and anything a newer firmware adds)
+    for (const [key, value] of Object.entries(passThroughData.defaultParamsAttributes)) {
+        xml += `\n\t\t${key}="${value}"`;
+    }
+
+    xml += '>\n';
 
     // Envelopes
     xml += `\t\t<envelope1\n\t\t\tattack="${currentState.env1Attack}"`;
@@ -324,9 +373,33 @@ function generateXML() {
             xml += `\t\t\t<patchCable\n\t\t\t\tsource="${cable.source}"`;
             xml += `\n\t\t\t\tdestination="${cable.destination}"`;
             xml += `\n\t\t\t\tamount="${cable.amount}"`;
-            // Use cable's rangeAdjustable if set, otherwise default to 1 (bipolar)
-            const rangeAdj = cable.rangeAdjustable !== undefined ? cable.rangeAdjustable : '1';
-            xml += `\n\t\t\t\trangeAdjustable="${rangeAdj}" />\n`;
+
+            // Only write polarity when the source file specified it. The firmware
+            // picks a sensible default per modulation source otherwise, and we
+            // have no UI to make a better choice than it does.
+            if (cable.polarity) {
+                xml += `\n\t\t\t\tpolarity="${cable.polarity}"`;
+            }
+
+            // Legacy attribute from files predating V3.2, replayed only if the
+            // source file actually had it. It is NOT a polarity flag: the
+            // firmware uses it to re-point the cable's destination at another
+            // cable's depth (patch_cable_set.cpp:915-953), so emitting it by
+            // default silently rewires every cable in the preset.
+            if (cable.rangeAdjustable !== undefined) {
+                xml += `\n\t\t\t\trangeAdjustable="${cable.rangeAdjustable}"`;
+            }
+
+            for (const [key, value] of Object.entries(cable.extraAttributes || {})) {
+                xml += `\n\t\t\t\t${key}="${value}"`;
+            }
+
+            // <depthControlledBy> and friends
+            if (cable.subTags) {
+                xml += '>\n' + cable.subTags + '\t\t\t</patchCable>\n';
+            } else {
+                xml += ' />\n';
+            }
         });
         xml += '\t\t</patchCables>\n';
     }
@@ -337,16 +410,31 @@ function generateXML() {
     xml += `\n\t\t\tbassFrequency="${currentState.bassFrequency}"`;
     xml += `\n\t\t\ttrebleFrequency="${currentState.trebleFrequency}" />\n`;
 
+    // Replay <defaultParams> sub-tags we have no UI for
+    if (passThroughData.defaultParamsTags) {
+        xml += passThroughData.defaultParamsTags;
+    }
+
     xml += '\t</defaultParams>\n';
 
-    // Arpeggiator (basic)
-    xml += '\t<arpeggiator\n\t\tmode="off"';
-    xml += '\n\t\tnumOctaves="2"';
-    xml += `\n\t\tsyncLevel="7"`;
-    xml += `\n\t\tsyncType="0" />\n`;
+    // Arpeggiator - no UI, so replay the source file's settings when there were
+    // any, and fall back to a disabled arpeggiator for a brand new preset.
+    const arp = passThroughData.arpeggiatorAttributes
+        || { mode: 'off', numOctaves: '2', syncLevel: '7', syncType: '0' };
+    xml += '\t<arpeggiator';
+    for (const [key, value] of Object.entries(arp)) {
+        xml += `\n\t\t${key}="${value}"`;
+    }
+    xml += ' />\n';
 
-    // Don't write modKnobs - let Deluge use its default hardware knob assignments
-    // Writing them can interfere with parameter control
+    // Replay whole elements we don't recognize: <modKnobs>, <midiOutput>,
+    // <audioCompressor>, <stutter>, and whatever a future firmware adds.
+    // Note modKnobs is deliberately NOT synthesized for new presets - the Deluge
+    // assigns sensible hardware knob defaults, and writing our own interferes
+    // with parameter control. Preserving one that already exists is different.
+    if (passThroughData.unknownTags) {
+        xml += passThroughData.unknownTags;
+    }
 
     xml += '</sound>\n';
 
@@ -431,14 +519,7 @@ function parseXML(xmlString) {
     
     
     // Clear pass-through data for new file
-    passThroughData = {
-        soundAttributes: {},
-        osc1Attributes: {},
-        osc2Attributes: {},
-        osc1SubTags: '',
-        osc2SubTags: '',
-        unknownTags: ''
-    };
+    passThroughData = emptyPassThroughData();
 
     // Parse attributes
     if (sound.hasAttribute('polyphonic')) currentState.polyphonic = sound.getAttribute('polyphonic');
@@ -449,6 +530,27 @@ function parseXML(xmlString) {
     if (sound.hasAttribute('modFXType')) currentState.modFXType = sound.getAttribute('modFXType');
     if (sound.hasAttribute('filterRoute')) currentState.filterRoute = sound.getAttribute('filterRoute');
     if (sound.hasAttribute('maxVoices')) currentState.maxVoices = sound.getAttribute('maxVoices');
+
+    // generateXML() writes these three, but nothing used to read them back, so a
+    // sound-level transpose or sidechain send was lost on the round trip.
+    if (sound.hasAttribute('transpose')) currentState.transpose = sound.getAttribute('transpose');
+    if (sound.hasAttribute('sideChainSend')) currentState.sidechainSend = sound.getAttribute('sideChainSend');
+    if (sound.hasAttribute('clippingAmount')) currentState.clippingAmount = sound.getAttribute('clippingAmount');
+
+    // Keep any <sound> attribute we don't write ourselves
+    for (const attr of sound.attributes) {
+        if (!SOUND_ATTRIBUTES.includes(attr.name)) {
+            passThroughData.soundAttributes[attr.name] = attr.value;
+        }
+    }
+
+    // Keep whole elements we don't write ourselves (<modKnobs>, <midiOutput>,
+    // <audioCompressor>, <stutter>, ...)
+    for (const child of sound.children) {
+        if (!SOUND_TAGS.includes(child.tagName)) {
+            passThroughData.unknownTags += serializeElement(child, 1);
+        }
+    }
 
     // Parse OSC1
     const osc1 = sound.querySelector('osc1');
@@ -479,6 +581,15 @@ function parseXML(xmlString) {
         for (const attr of osc1.attributes) {
             if (!knownAttrs.includes(attr.name)) {
                 passThroughData.osc1Attributes[attr.name] = attr.value;
+            }
+        }
+
+        // Sub-tags such as <zone> and <sampleRanges>. Skip the ones the parser
+        // above already read as elements in old-format files, or they would be
+        // written out twice.
+        for (const child of osc1.children) {
+            if (!OSC_VALUE_TAGS.includes(child.tagName)) {
+                passThroughData.osc1SubTags += serializeElement(child, 2);
             }
         }
     }
@@ -515,6 +626,12 @@ function parseXML(xmlString) {
         for (const attr of osc2.attributes) {
             if (!knownAttrs.includes(attr.name)) {
                 passThroughData.osc2Attributes[attr.name] = attr.value;
+            }
+        }
+
+        for (const child of osc2.children) {
+            if (!OSC_VALUE_TAGS.includes(child.tagName)) {
+                passThroughData.osc2SubTags += serializeElement(child, 2);
             }
         }
     }
@@ -590,6 +707,7 @@ function parseXML(xmlString) {
     // Parse sidechain/compressor
     const sidechain = sound.querySelector('sidechain, compressor');
     if (sidechain) {
+        passThroughData.hadSidechain = true;
         if (sidechain.hasAttribute('syncLevel')) currentState.sidechainSyncLevel = sidechain.getAttribute('syncLevel');
         if (sidechain.hasAttribute('syncType')) currentState.sidechainSyncType = sidechain.getAttribute('syncType');
         if (sidechain.hasAttribute('attack')) currentState.sidechainAttack = sidechain.getAttribute('attack');
@@ -600,27 +718,25 @@ function parseXML(xmlString) {
     const defaultParams = sound.querySelector('defaultParams');
     if (defaultParams) {
         // Parse all hex parameters
-        const hexParams = [
-            'arpeggiatorGate', 'portamento', 'compressorShape',
-            'oscAVolume', 'oscAPulseWidth', 'oscAWavetablePosition',
-            'oscBVolume', 'oscBPulseWidth', 'oscBWavetablePosition',
-            'noiseVolume', 'volume', 'pan',
-            'lpfFrequency', 'lpfResonance', 'lpfMorph',
-            'hpfFrequency', 'hpfResonance', 'hpfMorph',
-            'lfo1Rate', 'lfo2Rate', 'lfo3Rate', 'lfo4Rate',
-            'modulator1Amount', 'modulator1Feedback',
-            'modulator2Amount', 'modulator2Feedback',
-            'carrier1Feedback', 'carrier2Feedback',
-            'modFXRate', 'modFXDepth', 'modFXOffset', 'modFXFeedback',
-            'delayRate', 'delayFeedback', 'reverbAmount', 'arpeggiatorRate',
-            'stutterRate', 'sampleRateReduction', 'bitCrush', 'waveFold'
-        ];
-
-        hexParams.forEach(param => {
+        DEFAULT_PARAM_ATTRIBUTES.forEach(param => {
             if (defaultParams.hasAttribute(param)) {
                 currentState[param] = defaultParams.getAttribute(param);
             }
         });
+
+        // Keep the rest - compressorThreshold and the arpeggiator
+        // probability/spread set have no UI and were being dropped
+        for (const attr of defaultParams.attributes) {
+            if (!DEFAULT_PARAM_ATTRIBUTES.includes(attr.name)) {
+                passThroughData.defaultParamsAttributes[attr.name] = attr.value;
+            }
+        }
+
+        for (const child of defaultParams.children) {
+            if (!DEFAULT_PARAM_TAGS.includes(child.tagName)) {
+                passThroughData.defaultParamsTags += serializeElement(child, 2);
+            }
+        }
 
         // Parse envelopes
         const env1 = defaultParams.querySelector('envelope1');
@@ -659,12 +775,28 @@ function parseXML(xmlString) {
         patchCables = [];
         const patchCableElements = defaultParams.querySelectorAll('patchCables > patchCable');
         patchCableElements.forEach(cable => {
-            patchCables.push({
+            const entry = {
                 source: cable.getAttribute('source'),
                 destination: cable.getAttribute('destination'),
                 amount: cable.getAttribute('amount'),
-                rangeAdjustable: cable.getAttribute('rangeAdjustable') || '1'  // Default to bipolar
-            });
+                extraAttributes: {},
+                subTags: ''
+            };
+
+            if (cable.hasAttribute('polarity')) entry.polarity = cable.getAttribute('polarity');
+            if (cable.hasAttribute('rangeAdjustable')) entry.rangeAdjustable = cable.getAttribute('rangeAdjustable');
+
+            const knownCableAttrs = ['source', 'destination', 'amount', 'polarity', 'rangeAdjustable'];
+            for (const attr of cable.attributes) {
+                if (!knownCableAttrs.includes(attr.name)) {
+                    entry.extraAttributes[attr.name] = attr.value;
+                }
+            }
+            for (const child of cable.children) {
+                entry.subTags += serializeElement(child, 4);
+            }
+
+            patchCables.push(entry);
         });
 
         // Parse equalizer
@@ -674,6 +806,15 @@ function parseXML(xmlString) {
             if (equalizer.hasAttribute('treble')) currentState.treble = equalizer.getAttribute('treble');
             if (equalizer.hasAttribute('bassFrequency')) currentState.bassFrequency = equalizer.getAttribute('bassFrequency');
             if (equalizer.hasAttribute('trebleFrequency')) currentState.trebleFrequency = equalizer.getAttribute('trebleFrequency');
+        }
+    }
+
+    // Arpeggiator has no UI - keep the file's settings so they survive a re-save
+    const arpeggiator = sound.querySelector('arpeggiator');
+    if (arpeggiator) {
+        passThroughData.arpeggiatorAttributes = {};
+        for (const attr of arpeggiator.attributes) {
+            passThroughData.arpeggiatorAttributes[attr.name] = attr.value;
         }
     }
 
@@ -748,15 +889,9 @@ function resetToDefault() {
         originalLoadedFilepath = null; // Clear since we're starting fresh
         
         // Clear pass-through data
-        passThroughData = {
-            soundAttributes: {},
-            osc1Attributes: {},
-            osc2Attributes: {},
-            osc1SubTags: '',
-            osc2SubTags: '',
-            unknownTags: ''
-        };
-        
+        passThroughData = emptyPassThroughData();
+
+
         updateUIFromState();
         
         // Send MIDI CC for all parameters (if MIDI CC is enabled)

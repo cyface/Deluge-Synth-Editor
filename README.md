@@ -324,9 +324,9 @@ Preserved when loading and saving files:
 - Supports both old format (nested tags) and new format (attributes)
 
 ### Data Preservation
-- **Pass-through system** preserves parameters without UI (sample zones, DX7 data, etc.)
-- Load → Edit → Save = No data loss for advanced features
-- Safe for round-trip editing of complex patches
+- **Pass-through system** preserves everything the editor has no UI for: `<modKnobs>`, `<midiOutput>`, `<audioCompressor>`, `<stutter>`, sample zones, DX7 data, the arpeggiator probability/spread params, and any attribute a newer firmware adds
+- Load → Edit → Save = No data loss, and repeated saves are byte-stable
+- Verified against a Deluge-authored preset: all 204 values survive the round trip unchanged
 
 ### Further Reading
 - [SysEx reliability](docs/deluge-sysex-reliability.md) - session timeouts, dropped commands, and why saves are chunked and verified

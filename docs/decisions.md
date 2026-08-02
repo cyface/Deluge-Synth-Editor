@@ -102,6 +102,68 @@ corruption.
 
 ---
 
+## `rangeAdjustable` on `<patchCable>` is not a polarity flag
+
+**Decision: never write `rangeAdjustable` unless the loaded file already had it.
+Write `polarity` instead - and only when the source file specified it.**
+
+The editor used to stamp `rangeAdjustable="1"` on every patch cable it wrote,
+with a comment reading `// Bipolar (-50 to +50)`. That is a misreading of the
+format, and an actively damaging one.
+
+From `src/deluge/modulation/patch/patch_cable_set.cpp`:
+
+```cpp
+else if (!strcmp(tagName, "rangeAdjustable")) { // Files before V3.2 had this
+...
+if (rangeAdjustable) { rangeAdjustableCableS = source; rangeAdjustableCableP = ...; }
+...
+patchCables[c].destinationParamDescriptor.setToHaveParamAndSource(rangeAdjustableCableP,
+                                                                  rangeAdjustableCableS);
+```
+
+It is a legacy pre-V3.2 attribute, and it does not describe polarity at all -
+it marks a cable as a *range-adjusting* cable, causing the firmware to re-point
+its destination so it modulates **another cable's depth** instead of the
+parameter named in `destination`. Setting it on every cable silently rewires
+the whole modulation matrix.
+
+The current attribute is `polarity`, with values `bipolar` / `unipolar`
+(same file, the `"polarity"` branch). We deliberately do **not** write it for
+new cables: the firmware defaults polarity per modulation source, and with no
+UI to choose, its default is better than ours. We preserve it when a loaded
+file specifies it.
+
+**What would change this:** nothing likely. If UI for polarity is ever added,
+write `polarity` - never `rangeAdjustable`.
+
+---
+
+## Round-trip fidelity is a tested property, not an aspiration
+
+`parseXML` captures everything it does not understand into `passThroughData`
+(unknown `<sound>` attributes and child elements, `<defaultParams>` extras,
+osc sub-tags, per-cable extras) and `generateXML` replays it. The README
+promises no data loss, so that promise needs to stay true.
+
+Two subtleties that caused real losses and will again if someone "tidies up":
+
+- **Do not skip writing an attribute just because it holds the default value.**
+  `maxVoices`, `<lfo2>`'s `syncLevel`/`syncType`, `<unison spread>`, and
+  `<sidechain>` were each written conditionally, so re-saving a Deluge preset
+  quietly deleted them. The Deluge writes them unconditionally; match it.
+- **Element presence is not enough - compare values.** A check that only
+  compared tag and attribute *names* passed while `polarity` was being replaced
+  by `rangeAdjustable` on all six cables. Compare the full flattened
+  path→value map of source against output.
+
+The test that matters: load a Deluge-authored preset, `generateXML()`, and
+diff every value. Current status against `Tim.XML` (5875 bytes, 204 values):
+zero lost, zero changed, zero added, and a second pass is byte-identical to the
+first. A brand new preset stays clean - 10 elements, no pass-through leakage.
+
+---
+
 ## Corrections to earlier conclusions
 
 Recorded because each of these was stated confidently and was wrong, and the

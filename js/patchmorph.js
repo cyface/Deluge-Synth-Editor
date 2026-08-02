@@ -422,8 +422,7 @@ function morphModulation() {
                 patchCables.push({
                     source: source,
                     destination: mod.dest,
-                    amount: uiToHex(amount, -50, 50),
-                    rangeAdjustable: '1'
+                    amount: uiToHex(amount, -50, 50)
                 });
                 
                 usedCombos.add(combo);
@@ -464,8 +463,7 @@ function morphModulation() {
         patchCables.push({
             source: source,
             destination: destination,
-            amount: uiToHex(amount, -50, 50),
-            rangeAdjustable: '1'
+            amount: uiToHex(amount, -50, 50)
         });
     }
     
