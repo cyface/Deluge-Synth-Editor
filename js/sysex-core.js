@@ -102,9 +102,17 @@ const DELUGE_MAX_DIR_LINES = 25;
 // (every 7 bytes become 8), so the SysEx sent is roughly
 // 48 + chunk + ceil(chunk/7) bytes - and the Deluge drops inbound SysEx that
 // spans more than one 64-byte USB transfer (DelugeFirmware#4762). At the old
-// 128 the request was ~195 bytes and lost its middle transfers every time,
-// leaving exactly 44 of every 128 bytes on the card.
-const WRITE_CHUNK_SIZE = 32;
+// 128 the request was ~198 bytes spanning five USB transfers and lost its
+// middle two every time, leaving exactly 44 of every 128 bytes on the card.
+//
+// Measured accept rate by chunk size (full-length writes, same connection):
+//   16 -> 66 byte request, 10/10     24 -> 75 byte request, 6/6
+//   32 -> 84 byte request, 5/6       48 -> 105 byte request, total failure
+// 24 wins on throughput: 16 is equally reliable but moves less per round trip,
+// and by 32 the accept rate costs more than the extra payload gains. Nothing
+// fits in one USB transfer (the JSON alone is ~41 bytes), so this only narrows
+// the exposure - the size check in writeFile is what guarantees integrity.
+const WRITE_CHUNK_SIZE = 24;
 const WRITE_CHUNK_ATTEMPTS = 5;
 
 // Deluge SYSEX manufacturer ID and commands (DEx smSysex protocol)
@@ -558,19 +566,24 @@ function handleMidiMessage(event) {
  *
  * Every command addresses an explicit fid/addr/offset, so resending is
  * idempotent. The budget is therefore many short attempts rather than a few
- * patient ones: 20 tries at 400ms costs 8s in the worst case but almost always
- * lands within a second.
+ * patient ones, and the early rungs are far shorter than a cautious timeout
+ * would be. That matters most for writes: measured drop rate is ~68% per send
+ * and successful replies come back in 4-11ms, so the time spent waiting on
+ * already-dead attempts IS essentially the whole cost of a save. Dropping the
+ * first rung from 400ms to 120ms took a preset save from minutes to seconds.
  *
  * Commands land on either side of the cliff depending on their arguments, so
  * this cannot be avoided by construction - `read` crosses 48 bytes once `addr`
- * grows, `open` crosses it with any real path, and `write` (128-byte binary
- * payload, ~1170 bytes total) is far over it.
+ * grows, `open` crosses it with any real path, and `write` is always over it
+ * (see WRITE_CHUNK_SIZE).
  *
  * The long tail exists only for operations that may genuinely be slow on the
  * card (open/close/flush on a large file), not for dropped-request recovery.
  */
 const SEND_ATTEMPT_TIMEOUTS_MS = [
-    ...Array(20).fill(400),
+    ...Array(10).fill(120),
+    ...Array(8).fill(300),
+    ...Array(4).fill(800),
     2000, 4000, 10000
 ];
 
