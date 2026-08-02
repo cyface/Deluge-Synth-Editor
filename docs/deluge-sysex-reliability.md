@@ -204,9 +204,35 @@ Commands land on either side of the 48-byte cliff depending on their arguments:
   `"addr":4096` makes it 50, so reads get flaky deeper into a file.
 - `open` with a real path such as `/SYNTHS/FACT/SYNT000.XML` is ~60 bytes and
   always needs retries.
-- `write` carries a 128-byte binary payload, ~1170 bytes total, so it is far
-  over the cliff and fails most of the time.
+- `write` carries a 128-byte binary payload. The 7-bit packing turns that into
+  147 bytes, so the request is ~198 bytes — far over the cliff. See below; this
+  one silently corrupted a file.
 - Directory listings of deeply nested paths get worse the longer the path.
+
+### The write path silently corrupted a preset
+
+Saving a 2455-byte preset reported success, listed at the right size, and then
+froze the Deluge with `E365` on load. The file held **the first 44 bytes of
+every 128-byte chunk followed by 84 NUL bytes**, all 19 chunks, perfectly
+regular — 1596 of 2455 bytes were zeros. The surviving heads are contiguous
+with each other, so the source XML was intact and the loss was entirely in
+transit.
+
+The request is 198 bytes = five 64-byte USB transfers. It consistently loses
+the middle two, leaving 51 packed bytes, which unpack to exactly 44. The
+terminating `F7` still arrives, so the message completes and looks legitimate.
+
+It was silent because `smSysex::writeBlock` commits whatever survived and still
+reports `err = FR_OK`, echoing the real count in `^write.size`. `writeFile`
+checked only `err`, and the post-write verification called `fileExists()` —
+the directory entry, not the contents. So a holed file passed every check.
+
+Fixed here by checking `^write.size` against the chunk length and retrying, and
+by verifying after close with a full read-back byte comparison. Note that no
+chunk size avoids the underlying problem: the JSON alone is ~41 bytes, so even
+a 16-byte payload spans two USB transfers. Smaller chunks only narrow the
+exposure — the write chunk is now 32 bytes (~87-byte request, 2 transfers
+instead of 5).
 
 An earlier revision of this document blamed `SysExQ` memory pressure and
 reported the drop rate "worsening over a session". That was wrong: the varying
