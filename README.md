@@ -333,6 +333,9 @@ Preserved when loading and saving files:
 - Load → Edit → Save = No data loss, and repeated saves are byte-stable
 - Verified against a Deluge-authored preset: all 204 values survive the round trip unchanged
 
+### Tools
+- `tools/make_kit.py` - offline helper that generates kit XML files from folders of WAV samples on the SD card (`python3 tools/make_kit.py /Volumes/DELUGE "SAMPLES/PACK/Some Kit"`). The kit template is copied from a community-firmware c1.3.0 save, and each row's sample zone uses the exact frame count read from the WAV; see the script docstring for options. Also serves as a format reference for the planned kit editor (issue #1).
+
 ### Further Reading
 - [SysEx reliability](docs/deluge-sysex-reliability.md) - session timeouts, dropped commands, and why saves are chunked and verified
 - [Decisions](docs/decisions.md) - choices that look wrong but are deliberate, and earlier conclusions that turned out to be wrong
