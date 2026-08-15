@@ -3,6 +3,10 @@ test_*.XML
 *.xml
 *.XML
 
+# Python
+__pycache__/
+*.py[cod]
+
 # macOS
 .DS_Store
 
