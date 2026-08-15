@@ -231,8 +231,19 @@ Fixed here by checking `^write.size` against the chunk length and retrying, and
 by verifying after close with a full read-back byte comparison. Note that no
 chunk size avoids the underlying problem: the JSON alone is ~41 bytes, so even
 a 16-byte payload spans two USB transfers. Smaller chunks only narrow the
-exposure — the write chunk is now 32 bytes (~87-byte request, 2 transfers
-instead of 5).
+exposure. Measured accept rate by payload size, full-length writes on the same
+connection:
+
+| payload | request bytes | accepted             |
+| ------- | ------------- | -------------------- |
+| 16 B    | 66            | 10/10                |
+| 24 B    | 75            | 6/6                  |
+| 32 B    | 84            | 5/6                  |
+| 48 B    | 105           | fails after 23 tries |
+
+The write chunk is 24 bytes (`WRITE_CHUNK_SIZE`, `sysex-core.js:115`). 16 is
+equally reliable but moves less per round trip, and by 32 the accept rate costs
+more than the extra payload gains.
 
 An earlier revision of this document blamed `SysExQ` memory pressure and
 reported the drop rate "worsening over a session". That was wrong: the varying
@@ -285,6 +296,187 @@ is 14 pages, and each page usually needs several sends before one is accepted.
 
 ---
 
+## 3. What the other clients do
+
+Four clients speak smSysex. None of them survives the drop, but they fail in
+different ways, and the differences turned out to be worth understanding.
+
+| client                                     | timeout               | resend on drop | write chunk                          | write verified   |
+| ------------------------------------------ | --------------------- | -------------- | ------------------------------------ | ---------------- |
+| `jamiefaye/vuefinder` — reference client    | none                  | none           | 512 B (~630 B request)               | `close` err only |
+| `silicakes/deluge-extensions` (DEx)         | 10s, then reject      | none           | 128 B `fsWrite` / 256 B `uploadFile` | `err` only       |
+| `solaris76/Deluge-Synth-Editor` — this base | 15s session / 10s cmd | none           | 128 B                                | `fileExists()`   |
+| this fork                                   | 20×400ms + tail       | yes            | 24 B                                 | full read-back   |
+
+(`MrHaila/deluge-sysex-tools` is a stub — "proposal, doesn't actually do
+anything yet". `DelugeWeb` hosts vuefinder; downrush/catnip/delugeclient are
+FlashAir or debug tools, not smSysex.)
+
+### vuefinder is the firmware's own reference client
+
+PR #2853, which added smSysex, describes itself as being for "file browsing and
+transfer between the Deluge & the 'vuefinder' web application". Jamie Fenton
+wrote both sides. So vuefinder's `blockSize = 512`
+(`src/utils/FileRoutines.js:3`) is the size the protocol was designed around —
+more than ten times the 48-byte cliff.
+
+It has no timeout and no retry anywhere. `sendJsonRequest` stores a callback in
+an array indexed by msgId and returns; a dropped request simply means the
+callback is never invoked and the transfer stops, permanently and silently. The
+project's own documentation describes exactly that state — *"if you need to stop
+a transfer in its tracks, reloading the web page will work. (If you do too many
+of these forced-resets, you may have to reboot the Deluge too)"* — and lists an
+abort feature and a progress meter among the unfinished work. The repository has
+not been touched since November 2024, the month #2853 merged.
+
+### …and its write loop is accidentally immune to the corruption
+
+It advances by the size the Deluge reports, not the size it asked for:
+
+```js
+writtenSoFar += resp.size;          // what the Deluge actually wrote
+params.addr = writtenSoFar;
+let sizeToWrite = toWrite - writtenSoFar;
+if (sizeToWrite > blockSize) sizeToWrite = blockSize;
+let packed = pack8bitTo7bit(fromByteArray, writtenSoFar, sizeToWrite);
+```
+
+A truncated request whose JSON header still parses comes back with a short
+`^write.size`, and the next request re-sends from there. No hole is ever left.
+Truncation costs throughput, not correctness — which is why a 512-byte block
+size was never noticed as a problem, and why the loss stayed invisible for two
+years.
+
+The clients that advance by the *requested* size are the ones that corrupt:
+
+- `solaris76` (`sysex-core.js`) never reads `^write.size` at all — `offset +=
+  size` unconditionally. That is the hole this fork found: the firmware writes
+  44 bytes, the client moves on 128, FatFS zero-fills the gap.
+- DEx `fsWrite.ts` does the same.
+- DEx `uploadFile.ts` is worse. It advances the destination address by
+  `response.size` but the source offset by the requested `size`, so a short
+  write drops those source bytes entirely and shifts everything after them down.
+  The result is a spliced, short file rather than a holed one, and nothing
+  checks the final length.
+
+Note that vuefinder's immunity only covers the case where the JSON header
+survives. Its `write` JSON is ~43 bytes, so with the 7-byte SysEx header the
+header alone reaches the 48-byte boundary; lose the transfer carrying the rest
+of it and the request fails to parse, gets popped with no reply, and the upload
+hangs with nothing to time it out.
+
+### vuefinder's read path sits under the cliff by luck
+
+`{"read":{"fid":1,"addr":0,"size":512}}` is 34 bytes and stays under 48 even at
+six-digit addresses, and reads are outbound-heavy. So the "around 200K bytes per
+second" figure in the vuefinder documentation is a download number and does not
+contradict any of this. The inbound direction is the exposed one, and `write` is
+the only command that pushes it hard.
+
+### DEx worked around this without diagnosing it
+
+`fsWrite.ts:33` reads `const chunkSize = 128; // Use 128 byte chunks to avoid
+SysEx size limits`, and `uploadFile.ts:60` is `const chunkSize = 256; // Reduced
+chunk size`. Someone hit a size-dependent failure and shrank the chunk
+empirically. DEx issue #11 ("File Browser doesn't work?") has the maintainer
+replying that *"we had some regression in our file browser (SysEx) mechanism …
+some of it was fixed while some is still being worked on"*.
+
+Neither is a diagnosis, but both are independent sightings of the same cliff.
+
+### The fallback message ID bug is shared
+
+DEx uses the same `midMin: 0x41, midMax: 0x4f` fallback
+(`src/lib/smsysex.ts:460`) that this fork inherited and fixed in section 1. The
+firmware encodes IDs as `(sid << SYSEX_SESSION_SHIFT) + 1..SYSEX_MSGID_MAX`,
+with the shift 3 and the max 7 (`smsysex.cpp:69-72`, `:745-746`), so that range
+straddles two session blocks and contains the dead `0x48`. It is still live
+upstream.
+
+### Why this went two years without a bug report
+
+Every client hit it. None of them recognised it as a firmware problem, because
+the cliff never presents as one:
+
+- vuefinder's docs tell you to reload the page, and sometimes to reboot the
+  Deluge.
+- DEx `fsWrite.ts:33` — `const chunkSize = 128; // Use 128 byte chunks to avoid
+  SysEx size limits`.
+- DEx `uploadFile.ts:60` — `const chunkSize = 256; // Reduced chunk size`.
+- DEx issue #11, "File Browser doesn't work?" — *"we had some regression in our
+  file browser (SysEx) mechanism … some of it was fixed while some is still
+  being worked on."*
+
+Four parties, four independent size-dependent failures, four local workarounds,
+no upstream issue. The failure mode is what does it: a dropped request looks
+like a hung web app, and a truncated write looks like a bad SD card. Neither
+looks like USB.
+
+---
+
+## 4. Open questions
+
+Both of these need hardware and are **not yet tested**.
+
+### The test that removes the client from the argument
+
+Everything measured so far runs through this editor's own code, which invites
+the response that the editor is at fault. `ping` removes that. `doPing`
+(`smsysex.cpp:751-756`) does nothing but reply — no SD access, no file handle,
+no session mutation — and `handleNextSysEx` skips unrecognised tags with
+`parser.exitTag()` and keeps looping.
+
+So send a padded ping, with the padding **first**:
+
+```json
+{"pad":"AAAA…","ping":{}}
+```
+
+The order matters. The parser walks tags left to right, so it only reaches
+`ping` if the whole message arrived. Truncate it anywhere and
+`readNextTagOrAttributeName()` returns `""`, the loop falls through to `done:`,
+the entry is popped, and no reply is ever sent. Reply rate is then a direct
+binary measure of *did every byte get here*.
+
+Sweep the pad length so total request size runs ~20 to ~200 bytes, 100 sends at
+each size, and plot reply rate against length.
+
+This is worth doing because it cannot be deflected. Nothing downstream of USB
+is involved — no FatFS, no `f_write`, no `writeBlock`. The semantics are
+identical in every trial and only the length changes. It touches none of this
+editor's write, chunking or verification logic. And it is read-only, so it can
+be run as long as needed without risking the card.
+
+It should also settle the mechanism in section 2. If padded `ping` falls off
+the same cliff as `write`, the problem is entirely USB-side and the SD-contention
+half of the story is at most contributory — which would explain the otherwise
+awkward measurement that 0ms, 50ms and 500ms request spacing made no
+difference. If padded `ping` stays clean and only `write` fails, the mechanism
+as written here is wrong and the fault is somewhere in the SD path.
+
+### Keeping partial progress on a short write
+
+`writeFile` currently discards it. On a short write it re-sends the whole chunk
+at the same `addr` (`sysex-core.js:781-786`) and gives up after
+`WRITE_CHUNK_ATTEMPTS`. vuefinder instead keeps the bytes that landed and
+resumes at `offset + ack.size`. At the measured ~68% drop rate that is a lot of
+successful partial work being thrown away, and it may also allow a larger chunk
+again, since a big chunk that half-lands still makes half-progress.
+
+The reason it has not been adopted: advancing by `ack.size` assumes the bytes
+that arrived are a clean *prefix*. `decodeDataFromReader` decodes whatever
+bytes it received, in order, and cannot tell that an interior transfer is
+missing. If loss is ever "transfers 1 and 4 arrive, 2 and 3 do not", the Deluge
+writes spliced data and still reports a plausible `size`, and advancing by it
+commits silent garbage. The observed `E365` file was clean truncation, but that
+is a single observation.
+
+If adopted, it must keep the full byte-for-byte read-back after close, which
+would catch a splice. "Take vuefinder's resume logic, keep our backstop" — not
+"copy vuefinder".
+
+---
+
 ## Reference
 
 Firmware source consulted (branch `beta`,
@@ -297,5 +489,13 @@ Firmware source consulted (branch `beta`,
 - `src/deluge/io/midi/midi_engine.cpp` — `midiSysexReceived`,
   `checkIncomingUsbSysex`
 
-Protocol reference implementation: `silicakes/deluge-extensions`,
-`src/lib/smsysex.ts`.
+Client implementations consulted:
+
+- `jamiefaye/vuefinder` — `src/utils/FileRoutines.js`,
+  `src/utils/JsonReplyHandler.js`. The original reference client, by the author
+  of smSysex itself; PR #2853 added the firmware side for it.
+- `silicakes/deluge-extensions` (DEx) — `src/lib/smsysex.ts`,
+  `src/commands/fileSystem/{fsWrite,fsRead,fsList}.ts`,
+  `src/commands/fileSystem/uploadFile/uploadFile.ts`.
+- `solaris76/Deluge-Synth-Editor` — `js/sysex-core.js`, the base this fork
+  started from.
