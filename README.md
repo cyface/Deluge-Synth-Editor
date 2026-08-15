@@ -335,6 +335,7 @@ Preserved when loading and saving files:
 
 ### Tools
 - `tools/make_kit.py` - offline helper that generates kit XML files from folders of WAV samples on the SD card (`python3 tools/make_kit.py /Volumes/DELUGE "SAMPLES/PACK/Some Kit"`). The kit template is copied from a community-firmware c1.3.0 save, and each row's sample zone uses the exact frame count read from the WAV; see the script docstring for options. Also serves as a format reference for the planned kit editor (issue #1).
+- `tools/rename_factory_presets.py` - offline helper that renames the factory synth presets from `SYNT000.XML`-`SYNT170.XML` to the names in the official "Synth Presets ver 2.1" chart (`python3 tools/rename_factory_presets.py /Volumes/DELUGE --apply`). Chart numbers are kept as a zero-padded prefix so the Deluge's alphabetical browser preserves the chart's grouping; `--no-prefix` drops them. Dry-runs unless given `--apply`.
 
 ### Further Reading
 - [SysEx reliability](docs/deluge-sysex-reliability.md) - session timeouts, dropped commands, and why saves are chunked and verified
