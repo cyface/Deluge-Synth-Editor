@@ -512,11 +512,13 @@ function formatDisplayValue(paramName, uiValue) {
         return uiValue > 0 ? 'R' + uiValue.toFixed(0) : 'L' + Math.abs(uiValue).toFixed(0);
     }
 
-    // Filter frequency (approximate)
+    // Filter frequency: show the Deluge's own 0-50 menu number. The firmware's
+    // real frequency curve is exponential around a per-filter neutral value
+    // with saturation (getExp in functions.cpp), so the naive 20Hz-20kHz label
+    // this used to show was wrong through most of the knob's travel - the LPF
+    // is effectively wide open well before the top.
     if (paramName.includes('Frequency') && (paramName.includes('lpf') || paramName.includes('hpf'))) {
-        const freq = 20 * Math.pow(1000, uiValue / 50);
-        if (freq < 1000) return freq.toFixed(0) + ' Hz';
-        return (freq / 1000).toFixed(1) + ' kHz';
+        return uiValue.toFixed(0) + ' / 50';
     }
 
     // LFO Rate (approximate Hz)

@@ -69,7 +69,10 @@ async function sendToDeluge() {
         // Update save path indicator for next save
         updateSavePathIndicator();
         
-        showNotification(`✓ Saved to ${filepath} - Reload patch on Deluge to hear changes`);
+        // A plain re-load on the Deluge revives the stale in-memory copy (it
+        // matches presets by name+folder, including hibernating ones). The
+        // load browser's hold-press CLONE option re-reads the file from card.
+        showNotification(`✓ Saved to ${filepath} - to hear changes on the Deluge: LOAD, hold the preset, choose CLONE`);
     } catch (error) {
         hideCommIndicator();
         console.error('Error sending to Deluge:', error);
