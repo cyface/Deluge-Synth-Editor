@@ -629,6 +629,25 @@ function updateKnobRelevance() {
     });
 }
 
+// Grain repurposes the shared mod FX params (processGrainFX in
+// mod_controllable_audio.cpp): depth is the wet amount, offset the grain
+// density, feedback the pitch randomness. Mirror the Deluge's own menu labels.
+function updateModFXLabels() {
+    const select = document.getElementById('modFXType');
+    const grain = (select ? select.value : currentState.modFXType) === 'grainFX';
+    const labels = {
+        modFXDepthKnob: grain ? 'Amount' : 'Depth',
+        modFXOffsetKnob: grain ? 'Density' : 'Offset',
+        modFXFeedbackKnob: grain ? 'Randomness' : 'Feedback'
+    };
+    Object.entries(labels).forEach(([knobId, text]) => {
+        const knob = document.getElementById(knobId);
+        if (!knob) return;
+        const label = knob.closest('.control-group')?.querySelector('.control-label');
+        if (label) label.textContent = text;
+    });
+}
+
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     setupOscillatorTypeListeners();
@@ -638,4 +657,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.addEventListener('change', updateKnobRelevance);
     });
     updateKnobRelevance();
+
+    const modFXTypeSelect = document.getElementById('modFXType');
+    if (modFXTypeSelect) modFXTypeSelect.addEventListener('change', updateModFXLabels);
+    updateModFXLabels();
 });

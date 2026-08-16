@@ -1082,6 +1082,10 @@ function updateUIFromState() {
         updateKnobRelevance();
     }
 
+    if (typeof updateModFXLabels === 'function') {
+        updateModFXLabels();
+    }
+
     // Show/hide DX7 panels based on oscillator types (hide covers reset /
     // loading a non-DX7 preset while a DX7 panel is showing)
     for (const oscNum of [1, 2]) {
