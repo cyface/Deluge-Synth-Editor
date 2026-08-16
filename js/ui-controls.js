@@ -658,7 +658,8 @@ function updateKnobRelevance() {
 
     [['A', 'osc1Type'], ['B', 'osc2Type']].forEach(([letter, typeId]) => {
         const type = readSelect(typeId);
-        setApplicable(`osc${letter}PulseWidthKnob`, !fm && type !== 'sample' && type !== 'dx7');
+        const noPulseWidth = ['sample', 'dx7', 'inLeft', 'inRight', 'inStereo'];
+        setApplicable(`osc${letter}PulseWidthKnob`, !fm && !noPulseWidth.includes(type));
         setApplicable(`osc${letter}WavetablePositionKnob`, !fm && type === 'wavetable');
     });
 

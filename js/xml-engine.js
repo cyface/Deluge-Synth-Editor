@@ -817,6 +817,13 @@ function parseXML(xmlString) {
         if (currentState[key] === 'sampleAndHold') currentState[key] = 'sah';
     }
 
+    // The ladder LPF modes aren't valid for the HPF (the firmware's HPF menu
+    // only offers SVF Band/Notch, HP Ladder and Off); older editor versions
+    // let them be selected
+    if (['12dB', '24dB', '24dBDrive'].includes(currentState.hpfMode)) {
+        currentState.hpfMode = 'HPLadder';
+    }
+
     // Parse unison
     const unison = sound.querySelector('unison');
     if (unison) {
