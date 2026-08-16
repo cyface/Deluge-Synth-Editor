@@ -1116,7 +1116,7 @@ function updateUIFromState() {
 function resetToDefault() {
     if (confirm('Reset all parameters to default values?')) {
         currentState = { ...defaultParams };
-        patchCables = [];
+        patchCables = DEFAULT_PATCH_CABLES.map(cable => ({ ...cable }));
         modKnobs = DEFAULT_MOD_KNOBS.map(knob => ({ ...knob }));
         originalLoadedFilepath = null; // Clear since we're starting fresh
         

@@ -387,8 +387,9 @@ function morphModulation() {
     // Skip if depth is 0
     if (depth === 0) return;
     
-    // Clear existing patch cables
-    patchCables = [];
+    // Start over from the default cables (velocity -> volume) rather than
+    // truly empty, so randomized patches stay velocity sensitive.
+    patchCables = DEFAULT_PATCH_CABLES.map(cable => ({ ...cable }));
     
     // Add common/essential modulations first
     const commonModulations = [
@@ -407,7 +408,9 @@ function morphModulation() {
         commonModulations.push({ sources: ['env2', 'env3'], dest: 'oscBWavetablePosition', chance: 0.6 });
     }
     
-    const usedCombos = new Set();
+    // Seed with the default cables so the random picks can't duplicate them
+    // (the Deluge drops later duplicates of a source/destination pair on load)
+    const usedCombos = new Set(patchCables.map(cable => `${cable.source}->${cable.destination}`));
     
     commonModulations.forEach(mod => {
         if (Math.random() < mod.chance) {

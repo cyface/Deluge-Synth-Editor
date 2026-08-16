@@ -196,9 +196,17 @@ const defaultParams = {
     carrier2Feedback: '0x80000000'
 };
 
+// A freshly-initialized Deluge sound isn't velocity sensitive by magic: the
+// firmware seeds every new preset with a Velocity -> Volume patch cable at
+// ~+25 (Sound::setupAsDefaultSynth, sound.cpp). Mirror it so blank and reset
+// editor presets respond to velocity the way a fresh Deluge preset does.
+const DEFAULT_PATCH_CABLES = [
+    { source: 'velocity', destination: 'volume', amount: '0x3FFFFFE8' }
+];
+
 // Current state
 let currentState = { ...defaultParams };
-let patchCables = [];
+let patchCables = DEFAULT_PATCH_CABLES.map(cable => ({ ...cable }));
 
 // Gold-knob assignments (<modKnobs>). 8 mod-button pages x 2 physical knobs,
 // written as a flat ordered list - position in the list is the only thing that
