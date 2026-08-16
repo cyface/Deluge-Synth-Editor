@@ -400,6 +400,40 @@ const modDestinations = [
     'modulator2Amount', 'modulator2Feedback'
 ];
 
+// Patch routing rules mirrored from the firmware (Sound::maySourcePatchToParam,
+// processing/sound/sound.cpp). "Global" params apply once to the whole sound
+// rather than per voice, so only the whole-sound sources may patch to them:
+// the global LFOs - "lfo1" and "lfo3" in XML terms (LFO2/LFO4 are the
+// per-voice ones) - and the sidechain. A cable from a per-voice source
+// (envelope, LFO2/4, velocity, note, aftertouch, X, Y, random) to a global
+// param is silently ignored by the Deluge, and its own menus never offer it.
+const GLOBAL_PATCH_SOURCES = ['lfo1', 'lfo3', 'compressor'];
+const GLOBAL_PATCH_DESTINATIONS = [
+    'lfo1Rate', 'lfo3Rate', 'modFXRate', 'modFXDepth',
+    'delayRate', 'delayFeedback', 'reverbAmount'
+];
+
+// Returns null if the Deluge honors this source/destination pair, otherwise a
+// short reason it does not. Covers the static rules from maySourcePatchToParam:
+// the local-to-global restriction above, plus the hardcoded Volume cases (no
+// envelopes - Envelope 1 already is the volume envelope - and no sidechain,
+// which ducks whole-sound volume on its own instead).
+function patchCableProblem(source, destination) {
+    if (GLOBAL_PATCH_DESTINATIONS.includes(destination)
+            && !GLOBAL_PATCH_SOURCES.includes(source)) {
+        return 'only LFO1, LFO3 and Sidechain can modulate whole-sound parameters like this one';
+    }
+    if (destination === 'volume') {
+        if (/^envelope[1-4]$/.test(source)) {
+            return 'envelopes can\'t patch to Volume (Envelope 1 already is the volume envelope)';
+        }
+        if (source === 'compressor') {
+            return 'the sidechain ducks the whole-sound volume by itself and can\'t patch to Volume';
+        }
+    }
+    return null;
+}
+
 // ============================================================================
 // VALUE CONVERSION FUNCTIONS
 // ============================================================================

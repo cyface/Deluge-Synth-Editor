@@ -307,16 +307,24 @@ function renderPatchCables() {
         const row = document.createElement('div');
         row.className = 'mod-row';
 
-        // Source select
+        // Source select. Combinations the firmware would ignore (see
+        // patchCableProblem) are disabled relative to the other dropdown's
+        // current value - except the cable's own value, which stays selectable
+        // so a loaded-but-invalid cable still displays and gets the warning
+        // below instead of silently jumping to a different source.
         const sourceSelect = document.createElement('select');
         modSources.forEach(source => {
             const option = document.createElement('option');
             option.value = source;
             option.textContent = modSourceLabels[source] || (source.charAt(0).toUpperCase() + source.slice(1));
             if (source === cable.source) option.selected = true;
+            else option.disabled = !!patchCableProblem(source, cable.destination);
             sourceSelect.appendChild(option);
         });
-        sourceSelect.onchange = (e) => updatePatchCable(index, 'source', e.target.value);
+        sourceSelect.onchange = (e) => {
+            updatePatchCable(index, 'source', e.target.value);
+            renderPatchCables();
+        };
 
         // Destination select
         const destSelect = document.createElement('select');
@@ -325,9 +333,13 @@ function renderPatchCables() {
             option.value = dest;
             option.textContent = formatModDestinationLabel(dest);
             if (dest === cable.destination) option.selected = true;
+            else option.disabled = !!patchCableProblem(cable.source, dest);
             destSelect.appendChild(option);
         });
-        destSelect.onchange = (e) => updatePatchCable(index, 'destination', e.target.value);
+        destSelect.onchange = (e) => {
+            updatePatchCable(index, 'destination', e.target.value);
+            renderPatchCables();
+        };
 
         // Amount slider
         const amountContainer = document.createElement('div');
@@ -361,6 +373,14 @@ function renderPatchCables() {
         row.appendChild(destSelect);
         row.appendChild(amountContainer);
         row.appendChild(removeBtn);
+
+        const problem = patchCableProblem(cable.source, cable.destination);
+        if (problem) {
+            const warning = document.createElement('div');
+            warning.className = 'cable-warning';
+            warning.textContent = '⚠ The Deluge ignores this cable: ' + problem + '.';
+            row.appendChild(warning);
+        }
 
         container.appendChild(row);
     });
