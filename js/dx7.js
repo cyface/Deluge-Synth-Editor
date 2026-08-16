@@ -541,6 +541,44 @@ function loadDX7SyxFromComputer(oscNum) {
     input.click();
 }
 
+/**
+ * Build a standard 163-byte DX7 single-voice sysex dump from 155 VCED bytes:
+ * F0 43 00 00 01 1B <155 voice bytes> <checksum> F7
+ */
+function buildDX7SingleVoiceSyx(voiceBytes) {
+    const syx = new Uint8Array(163);
+    syx.set([0xF0, 0x43, 0x00, 0x00, 0x01, 0x1B], 0);
+    syx.set(voiceBytes.slice(0, DX7_VOICE_SIZE), 6);
+    syx[161] = calculateDX7Checksum(voiceBytes.slice(0, DX7_VOICE_SIZE));
+    syx[162] = 0xF7;
+    return syx;
+}
+
+/**
+ * Download the oscillator's DX7 voice as a single-voice .syx file, usable in
+ * external editors (Dexed, etc.) or on a real DX7. The Deluge-only operator
+ * enable byte is not part of the sysex format and is dropped.
+ */
+function downloadDX7Syx(oscNum) {
+    const hex = normalizeDX7PatchHex(currentState[`osc${oscNum}DX7Patch`]);
+    if (!hex) {
+        alert(`No DX7 patch loaded on OSC${oscNum} - load or init one first.`);
+        return;
+    }
+    const voiceBytes = hexToVoiceData(hex);
+    const name = extractDX7PatchName(voiceBytes, 0, false) || 'DX7 VOICE';
+    const filename = name.replace(/[/\\:*?"<>|]/g, '-') + '.syx';
+
+    const blob = new Blob([buildDX7SingleVoiceSyx(voiceBytes)], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    showNotification(`✓ Downloaded ${filename}`);
+}
+
 // ============================================================================
 // DX7 PATCH EDITOR
 // ============================================================================

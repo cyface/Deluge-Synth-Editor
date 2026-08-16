@@ -1166,6 +1166,7 @@
                         <button onclick="loadDX7SyxFromComputer(1)">💻 Load .syx File</button>
                         <button onclick="openDX7Editor(1)">🎛️ Edit Patch</button>
                         <button onclick="initDX7Patch(1)">✨ Init Patch</button>
+                        <button onclick="downloadDX7Syx(1)" title="Save the current voice as a standard single-voice DX7 sysex file - editable in external editors like Dexed, or loadable on a real DX7">💾 Download .syx</button>
                         <button onclick="clearDX7Patch(1)" style="background: #cc0000;">✕ Clear</button>
                     </div>
                     
@@ -1197,10 +1198,6 @@
                             <label class="control-label" title="Adds analog-style random detuning per voice (makes sound warmer/wider)">Random Detune: <span id="osc1DX7RandomDetuneValue">0</span></label>
                             <input type="range" id="osc1DX7RandomDetune" min="0" max="100" value="0" style="width: 100%;" title="0=No detune (digital), 100=Maximum analog warmth">
                         </div>
-                    </div>
-                    
-                    <div style="margin-top: 10px; font-size: 12px; color: #888;">
-                        <a href="https://asb2m10.github.io/dexed/" target="_blank" style="color: #4CAF50;">Edit in Dexed →</a>
                     </div>
                 </div>
             </div>
@@ -1279,6 +1276,7 @@
                         <button onclick="loadDX7SyxFromComputer(2)">💻 Load .syx File</button>
                         <button onclick="openDX7Editor(2)">🎛️ Edit Patch</button>
                         <button onclick="initDX7Patch(2)">✨ Init Patch</button>
+                        <button onclick="downloadDX7Syx(2)" title="Save the current voice as a standard single-voice DX7 sysex file - editable in external editors like Dexed, or loadable on a real DX7">💾 Download .syx</button>
                         <button onclick="clearDX7Patch(2)" style="background: #cc0000;">✕ Clear</button>
                     </div>
                     
@@ -1310,10 +1308,6 @@
                             <label class="control-label" title="Adds analog-style random detuning per voice (makes sound warmer/wider)">Random Detune: <span id="osc2DX7RandomDetuneValue">0</span></label>
                             <input type="range" id="osc2DX7RandomDetune" min="0" max="100" value="0" style="width: 100%;" title="0=No detune (digital), 100=Maximum analog warmth">
                         </div>
-                    </div>
-                    
-                    <div style="margin-top: 10px; font-size: 12px; color: #888;">
-                        <a href="https://asb2m10.github.io/dexed/" target="_blank" style="color: #4CAF50;">Edit in Dexed →</a>
                     </div>
                 </div>
             </div>
