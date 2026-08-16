@@ -348,7 +348,7 @@ function morphFX() {
     
     // ModFX - 70% chance to enable (increases with amount)
     if (Math.random() < (0.3 + amount * 0.4)) {
-        const modFXTypes = ['flanger', 'chorus', 'phaser', 'StereoChorus', 'warble'];
+        const modFXTypes = ['flanger', 'chorus', 'phaser', 'StereoChorus', 'TapeWarble', 'dimension'];
         currentState.modFXType = randChoice(modFXTypes);
         // Direct scaling: slider at 50% = 50% of max depth
         currentState.modFXRate = uiToHex(randRange(5, 45 * amount), 0, 50);

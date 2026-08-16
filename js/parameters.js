@@ -547,11 +547,6 @@ function formatDisplayValue(paramName, uiValue) {
         return uiValue > 0 ? 'R' + uiValue.toFixed(0) : 'L' + Math.abs(uiValue).toFixed(0);
     }
 
-    // EQ knobs are also relative on the hardware (+/-25 around flat)
-    if (['bass', 'treble', 'bassFrequency', 'trebleFrequency'].includes(paramName)) {
-        if (Math.abs(uiValue) < 1) return '0';
-        return (uiValue > 0 ? '+' : '') + uiValue.toFixed(0);
-    }
 
     // Filter frequency: show the Deluge's own 0-50 menu number. The firmware's
     // real frequency curve is exponential around a per-filter neutral value
