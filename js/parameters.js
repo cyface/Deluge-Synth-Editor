@@ -465,6 +465,24 @@ function hexAtMinimum(hex) {
     return typeof hex === 'string' && (parseInt(hex, 16) >>> 0) === 0x80000000;
 }
 
+// Cable polarity (community firmware). Sources are stored bipolar except
+// aftertouch; the unipolar setting folds a bipolar source into one direction
+// so it only pushes the parameter up from the knob value instead of swinging
+// both ways (PatchCable::toPolarity in modulation/patch/patch_cable.h). X and
+// Y can't be converted - the mod wheel is unipolar but MPE Y is bipolar and
+// they share the Y source - so the firmware ignores the setting for those
+// (PatchCable::hasPolarity).
+function sourceHasPolarity(source) {
+    return source !== 'x' && source !== 'y';
+}
+
+// Effective polarity when the file doesn't specify one: the firmware defaults
+// loaded cables to bipolar, except aftertouch which it forces to unipolar
+// (patch_cable_set.cpp readPatchCablesFromFile).
+function defaultCablePolarity(source) {
+    return source === 'aftertouch' ? 'unipolar' : 'bipolar';
+}
+
 // Advisory companion to patchCableProblem: the Deluge does accept the cable,
 // but it currently can't be heard. Returns the reason, or null.
 function patchCableCaution(cable) {

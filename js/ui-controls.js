@@ -258,10 +258,11 @@ function drawEnvelope(canvasId, attack, decay, sustain, release, sustainMin = 0,
 // ============================================================================
 
 function addPatchCable() {
-    // No polarity: the firmware defaults it per modulation source, which is a
-    // better choice than any we can make without UI for it. (rangeAdjustable
-    // used to be set here in the belief it meant "bipolar" - it does not, see
-    // the patchCable notes in generateXML.)
+    // Polarity stays unset so generateXML omits the attribute and the firmware
+    // applies its per-source default; the row's Bi/Unipolar dropdown shows that
+    // default and only writes the attribute once the user picks a value.
+    // (rangeAdjustable used to be set here in the belief it meant "bipolar" -
+    // it does not, see the patchCable notes in generateXML.)
     const cable = {
         source: 'velocity',
         destination: 'volume',
@@ -372,6 +373,27 @@ function renderPatchCables() {
         amountContainer.appendChild(amountSlider);
         amountContainer.appendChild(amountValue);
 
+        // Polarity switch (community firmware's Bi/Unipolar cable setting).
+        // Left unset on new cables so generateXML omits the attribute and the
+        // firmware's per-source default applies; shown here as that default.
+        const polaritySelect = document.createElement('select');
+        [['bipolar', 'Bipolar'], ['unipolar', 'Unipolar']].forEach(([value, label]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            polaritySelect.appendChild(option);
+        });
+        polaritySelect.value = cable.polarity || defaultCablePolarity(cable.source);
+        if (sourceHasPolarity(cable.source)) {
+            polaritySelect.title = 'Bipolar: the source swings the parameter both ways around its set value. '
+                + 'Unipolar: it only pushes one way from it.';
+            polaritySelect.onchange = (e) => updatePatchCable(index, 'polarity', e.target.value);
+        } else {
+            polaritySelect.disabled = true;
+            polaritySelect.title = 'The firmware fixes the polarity of X (pitch bend) and Y (mod wheel) '
+                + 'and ignores this setting for them';
+        }
+
         // Remove button
         const removeBtn = document.createElement('button');
         removeBtn.textContent = '✕';
@@ -380,6 +402,7 @@ function renderPatchCables() {
         row.appendChild(sourceSelect);
         row.appendChild(destSelect);
         row.appendChild(amountContainer);
+        row.appendChild(polaritySelect);
         row.appendChild(removeBtn);
 
         const problem = patchCableProblem(cable.source, cable.destination);
