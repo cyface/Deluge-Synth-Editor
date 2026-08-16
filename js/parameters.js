@@ -498,18 +498,16 @@ function hexToUI(hexStr, min = -50, max = 50) {
 
 // Format display values
 function formatDisplayValue(paramName, uiValue) {
-    const absValue = Math.abs(uiValue);
-
-    // Volume parameters
-    if (paramName.includes('Volume') || paramName === 'volume') {
-        if (uiValue <= -49) return '-∞ dB';
-        return uiValue.toFixed(1) + ' dB';
-    }
-
-    // Pan
+    // Pan: the Deluge shows this relative (L25..R25)
     if (paramName === 'pan') {
         if (Math.abs(uiValue) < 1) return 'Center';
         return uiValue > 0 ? 'R' + uiValue.toFixed(0) : 'L' + Math.abs(uiValue).toFixed(0);
+    }
+
+    // EQ knobs are also relative on the hardware (+/-25 around flat)
+    if (['bass', 'treble', 'bassFrequency', 'trebleFrequency'].includes(paramName)) {
+        if (Math.abs(uiValue) < 1) return '0';
+        return (uiValue > 0 ? '+' : '') + uiValue.toFixed(0);
     }
 
     // Filter frequency: show the Deluge's own 0-50 menu number. The firmware's
@@ -534,7 +532,7 @@ function formatDisplayValue(paramName, uiValue) {
         return uiValue.toFixed(0) + ' / 50';
     }
 
-    // Generic percentage
-    return uiValue.toFixed(0);
+    // Everything else is a patched/unpatched param the Deluge shows as 0-50
+    return uiValue.toFixed(0) + ' / 50';
 }
 
