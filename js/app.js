@@ -77,6 +77,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (sliderReadouts[input.id]) {
                     updateSliderReadout(input.id);
                 }
+
+                // Syncing LFO1/LFO3 makes their rates unmodulatable
+                // (patchCableProblem), so refresh the cable warnings.
+                if (input.id === 'lfo1SyncLevel' || input.id === 'lfo3SyncLevel') {
+                    renderPatchCables();
+                }
             });
         }
     });

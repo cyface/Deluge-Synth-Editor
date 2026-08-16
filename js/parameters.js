@@ -431,6 +431,15 @@ function patchCableProblem(source, destination) {
             return 'the sidechain ducks the whole-sound volume by itself and can\'t patch to Volume';
         }
     }
+    // The global LFO rates refuse ALL cables while that LFO is tempo-synced -
+    // the sync grid dictates the rate instead (sound.cpp GLOBAL_LFO_FREQ
+    // cases). The per-voice LFO rates (LFO2/LFO4) have no such check.
+    if (destination === 'lfo1Rate' && parseInt(currentState.lfo1SyncLevel, 10) !== 0) {
+        return 'LFO1 is tempo-synced, so its rate can\'t be modulated (set LFO1 Sync Level to Off)';
+    }
+    if (destination === 'lfo3Rate' && parseInt(currentState.lfo3SyncLevel, 10) !== 0) {
+        return 'LFO3 is tempo-synced, so its rate can\'t be modulated (set LFO3 Sync Level to Off)';
+    }
     return null;
 }
 
