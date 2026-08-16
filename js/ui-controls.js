@@ -306,7 +306,7 @@ function renderPatchCables() {
         modDestinations.forEach(dest => {
             const option = document.createElement('option');
             option.value = dest;
-            option.textContent = dest.charAt(0).toUpperCase() + dest.replace(/([A-Z])/g, ' $1').trim();
+            option.textContent = dest.charAt(0).toUpperCase() + dest.slice(1).replace(/([A-Z])/g, ' $1');
             if (dest === cable.destination) option.selected = true;
             destSelect.appendChild(option);
         });
