@@ -323,31 +323,13 @@ async function loadMIDIFollowFromDeluge() {
 }
 
 /**
- * Update all control labels to show CC numbers for parameters that support MIDI CC
+ * Historically decorated every knob label with its MIDI CC number as a
+ * superscript badge. The badges were visual noise, so labels now stay plain -
+ * this just strips any that were added. MIDI CC sending/receiving itself is
+ * unaffected (see ccMappings / sendMIDICC).
  */
 function updateLabelsForCCMappings() {
-    const knobs = document.querySelectorAll('[data-param]');
-    
-    knobs.forEach(knob => {
-        const paramName = knob.dataset.param;
-        const ccNumber = ccMappings[paramName];
-        const controlGroup = knob.closest('.control-group');
-        if (!controlGroup) return;
-        const label = controlGroup.querySelector('.control-label');
-        if (!label) return;
-        
-        let baseText = label.innerHTML;
-        baseText = baseText.replace(/<sup>.*?<\/sup>/g, '');
-        baseText = baseText.trim();
-        
-        if (ccNumber !== undefined && ccNumber !== 255) {
-            label.innerHTML = baseText + '<sup>' + ccNumber + '</sup>';
-        } else {
-            label.innerHTML = baseText;
-        }
-    });
-    
-    console.log('Updated labels for CC mappings');
+    document.querySelectorAll('.control-label sup').forEach(sup => sup.remove());
 }
 
 /**
