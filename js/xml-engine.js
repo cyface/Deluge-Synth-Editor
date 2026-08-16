@@ -105,6 +105,54 @@ function degreesToRetrigPhase(value) {
 }
 
 // ============================================================================
+// SIDECHAIN ATTACK/RELEASE CONVERSION
+// ============================================================================
+
+// Sidechain attack/release are stored raw in the XML but shown on the Deluge
+// as a 0-50 index into exponential rate tables (menu_item/sidechain/attack.h
+// and release.h; tables in lookuptables.cpp). raw = table[index] << shift,
+// with shift 2 for attack and 3 for release. Reading picks the nearest table
+// entry, matching the firmware's getLookupIndexFromValue().
+const SIDECHAIN_ATTACK_TABLE = [
+    262144, 221969, 187951, 159147, 134757, 114105, 96618, 81811,
+    69273, 58656, 49667, 42055, 35610, 30153, 25532, 21619,
+    18306, 15500, 13125, 11113, 9410, 7968, 6747, 5713,
+    4837, 4096, 3468, 2937, 2487, 2106, 1783, 1510,
+    1278, 1082, 917, 776, 657, 556, 471, 399,
+    338, 286, 242, 205, 174, 147, 124, 105,
+    89, 76, 64];
+const SIDECHAIN_RELEASE_TABLE = [
+    32691, 4604, 2444, 1648, 1234, 980, 809, 685,
+    592, 519, 460, 412, 372, 338, 309, 283,
+    261, 241, 224, 208, 194, 181, 169, 159,
+    149, 140, 132, 124, 117, 110, 104, 98,
+    93, 88, 83, 78, 74, 70, 66, 62,
+    59, 56, 53, 50, 47, 44, 41, 39,
+    36, 34, 32];
+
+function sidechainRawToIndex(value, table, shift) {
+    const n = parseInt(value);
+    if (isNaN(n) || n < 0) return '0';
+    if (n <= 50) return String(n); // already an index (raw values are always >= 256)
+    const scaled = n >> shift;
+    let best = 0;
+    let bestDistance = Infinity;
+    for (let i = 0; i < table.length; i++) {
+        const distance = Math.abs(scaled - table[i]);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = i;
+        }
+    }
+    return String(best);
+}
+
+function sidechainIndexToRaw(value, table, shift) {
+    const n = Math.min(50, Math.max(0, parseInt(value) || 0));
+    return String(table[n] << shift);
+}
+
+// ============================================================================
 // XML GENERATION
 // ============================================================================
 
@@ -315,14 +363,14 @@ function generateXML() {
     const hasSidechain = passThroughData.hadSidechain ||
                         currentState.sidechainSyncLevel !== '6' ||
                         currentState.sidechainSyncType !== '0' ||
-                        currentState.sidechainAttack !== '327244' ||
-                        currentState.sidechainRelease !== '936';
+                        currentState.sidechainAttack !== '7' ||
+                        currentState.sidechainRelease !== '28';
 
     if (hasSidechain) {
         xml += `\t<sidechain\n\t\tsyncLevel="${currentState.sidechainSyncLevel}"`;
         xml += `\n\t\tsyncType="${currentState.sidechainSyncType}"`;
-        xml += `\n\t\tattack="${currentState.sidechainAttack}"`;
-        xml += `\n\t\trelease="${currentState.sidechainRelease}" />\n`;
+        xml += `\n\t\tattack="${sidechainIndexToRaw(currentState.sidechainAttack, SIDECHAIN_ATTACK_TABLE, 2)}"`;
+        xml += `\n\t\trelease="${sidechainIndexToRaw(currentState.sidechainRelease, SIDECHAIN_RELEASE_TABLE, 3)}" />\n`;
     }
 
     // Default parameters
@@ -796,6 +844,8 @@ function parseXML(xmlString) {
         if (sidechain.hasAttribute('syncType')) currentState.sidechainSyncType = sidechain.getAttribute('syncType');
         if (sidechain.hasAttribute('attack')) currentState.sidechainAttack = sidechain.getAttribute('attack');
         if (sidechain.hasAttribute('release')) currentState.sidechainRelease = sidechain.getAttribute('release');
+        currentState.sidechainAttack = sidechainRawToIndex(currentState.sidechainAttack, SIDECHAIN_ATTACK_TABLE, 2);
+        currentState.sidechainRelease = sidechainRawToIndex(currentState.sidechainRelease, SIDECHAIN_RELEASE_TABLE, 3);
     }
 
     // Parse the audio compressor - a separate effect from the sidechain above

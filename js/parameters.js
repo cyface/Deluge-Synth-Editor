@@ -144,8 +144,8 @@ const defaultParams = {
     sidechainSend: '0',        // Sidechain send level (sound attribute)
     sidechainSyncLevel: '6',
     sidechainSyncType: '0',
-    sidechainAttack: '327244',
-    sidechainRelease: '936',
+    sidechainAttack: '7',    // 0-50 index as shown on the Deluge (raw 327244)
+    sidechainRelease: '28',  // 0-50 index as shown on the Deluge (raw 936)
 
     // Audio compressor (<audioCompressor>) - a separate effect from the
     // sidechain above. Every value is a knob position in 0 .. 2147483647
