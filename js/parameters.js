@@ -197,10 +197,16 @@ const defaultParams = {
 };
 
 // A freshly-initialized Deluge sound isn't velocity sensitive by magic: the
-// firmware seeds every new preset with a Velocity -> Volume patch cable at
-// ~+25 (Sound::setupAsDefaultSynth, sound.cpp). Mirror it so blank and reset
-// editor presets respond to velocity the way a fresh Deluge preset does.
+// firmware seeds every new synth preset with four patch cables
+// (Sound::setupAsDefaultSynth, sound.cpp) - key tracking, filter envelope,
+// velocity-opens-filter and velocity-to-loudness. Mirror them, amounts
+// verbatim, so blank and reset editor presets respond like a fresh Deluge
+// preset does. (Envelope 2 here is the code's ENVELOPE_1 - XML names are
+// 1-based.)
 const DEFAULT_PATCH_CABLES = [
+    { source: 'note', destination: 'lpfFrequency', amount: '0x08F5C28C' },
+    { source: 'envelope2', destination: 'lpfFrequency', amount: '0x1C28F5B8' },
+    { source: 'velocity', destination: 'lpfFrequency', amount: '0x0F5C28F0' },
     { source: 'velocity', destination: 'volume', amount: '0x3FFFFFE8' }
 ];
 
