@@ -931,10 +931,17 @@ function parseXML(xmlString) {
         patchCables = [];
         const patchCableElements = defaultParams.querySelectorAll('patchCables > patchCable');
         patchCableElements.forEach(cable => {
+            // Old firmware (pre-3.x) wrote the fields as child elements
+            // (<source>velocity</source>) instead of attributes.
+            const cableField = (name) => {
+                if (cable.hasAttribute(name)) return cable.getAttribute(name);
+                const child = cable.querySelector(name);
+                return child ? child.textContent.trim() : null;
+            };
             const entry = {
-                source: cable.getAttribute('source'),
-                destination: cable.getAttribute('destination'),
-                amount: cable.getAttribute('amount'),
+                source: cableField('source'),
+                destination: cableField('destination'),
+                amount: cableField('amount'),
                 extraAttributes: {},
                 subTags: ''
             };
@@ -948,8 +955,13 @@ function parseXML(xmlString) {
                     entry.extraAttributes[attr.name] = attr.value;
                 }
             }
+            // Skip the fields read above so an old-format file's children
+            // aren't also replayed as pass-through sub-tags (they'd be
+            // written twice, once as attributes and once as elements).
             for (const child of cable.children) {
-                entry.subTags += serializeElement(child, 4);
+                if (!knownCableAttrs.includes(child.tagName)) {
+                    entry.subTags += serializeElement(child, 4);
+                }
             }
 
             patchCables.push(entry);
