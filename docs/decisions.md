@@ -321,3 +321,38 @@ wrong version is more memorable than the right one.
 - **The preset corruption was not caused by our retry logic.** It was the
   missing `^write.size` check, which predated that work: `smSysex::writeBlock`
   commits however many bytes survived the transfer and still replies `err=0`.
+
+---
+
+## USB-drop workarounds backed out after the firmware fix (2026-08-15)
+
+**Decision: with the inbound USB packet loss fixed in community firmware
+c1.3.0 (upstream PR #4633), the workarounds sized for it are backed out, but
+the integrity checks stay.**
+
+Verified on hardware first (c1.3.0, real USB): 40/40 replies to 55-195 byte
+requests, and 128/256/512-byte write chunks each wrote a 16KB file with zero
+short writes and byte-identical read-back. 1024-byte chunks fail for a
+different, legitimate reason - the firmware caps inbound SysEx at
+`MaxSysExLength` = 1024 total bytes, and a 1024-byte chunk packs to ~1220.
+
+Backed out:
+
+- `WRITE_CHUNK_SIZE` 24 → 512, the size the protocol was designed around.
+  Measured 27 KB/s vs ~1 KB/s effective before; a preset save is now
+  sub-second instead of tens of seconds.
+- `SEND_ATTEMPT_TIMEOUTS_MS` trimmed from 25 rungs to 6 (a few quick resends
+  plus the slow-SD tail).
+
+Deliberately kept:
+
+- The `^write.size` short-write check and the full read-back verification.
+  Nearly free at the new speeds, and on pre-fix firmware they turn silent
+  corruption into a hard error.
+- Resend-on-timeout itself: defect 2 of #4762 (silent drop of unparseable
+  requests) is still in stock firmware, and the ladder converts any silent
+  drop into a clean failure.
+
+Consequence: saving requires community firmware c1.3.0 or later. On older
+firmware a 512-byte write request is dropped essentially every time, so saves
+fail with a clear error after the retry ladder - they do not corrupt.

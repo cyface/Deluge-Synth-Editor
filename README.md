@@ -339,7 +339,7 @@ Preserved when loading and saving files:
 - `tools/relink_card_paths.py` - offline helper that repoints the `presetFolder` / `instrumentPresetFolder` / `path` / `fileName` references in a card's XML at what is actually on disk (`python3 tools/relink_card_paths.py /Volumes/DELUGE --rename FAMO=Famous --apply`). Each path component is matched case-insensitively against the real directory entries, so casing drift is fixed with no configuration; only folders that changed by more than case need a `--rename`. Paths that still don't resolve are listed rather than rewritten to a guess. Dry-runs unless given `--apply`; `--backup DIR` keeps copies. Note that a song can carry a preset inline, in which case `presetName` resolves inside the song rather than against the card - those show up as unresolved but are not broken.
 
 ### Further Reading
-- [SysEx reliability](docs/deluge-sysex-reliability.md) - session timeouts, dropped commands, and why saves are chunked and verified
+- [SysEx reliability](docs/deluge-sysex-reliability.md) - the firmware USB drop (fixed in c1.3.0) that shaped the save path, and why saves are still chunked and verified. Saving requires community firmware c1.3.0 or later.
 - [Decisions](docs/decisions.md) - choices that look wrong but are deliberate, and earlier conclusions that turned out to be wrong
 
 ## Known Limitations

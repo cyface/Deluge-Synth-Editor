@@ -100,19 +100,20 @@ const CACHE_DURATION_MS = 30000; // Cache directory listings for 30 seconds
 const DELUGE_MAX_DIR_LINES = 25;
 // Bytes of file data per write command. The binary payload is 7-bit packed
 // (every 7 bytes become 8), so the SysEx sent is roughly
-// 48 + chunk + ceil(chunk/7) bytes - and the Deluge drops inbound SysEx that
-// spans more than one 64-byte USB transfer (DelugeFirmware#4762). At the old
-// 128 the request was ~198 bytes spanning five USB transfers and lost its
-// middle two every time, leaving exactly 44 of every 128 bytes on the card.
+// 48 + chunk + ceil(chunk/7) bytes. 512 is the size the protocol was designed
+// around (vuefinder's blockSize), and the ceiling is the firmware's
+// MaxSysExLength of 1024 total SysEx bytes (smsysex.cpp) - a 1024-byte chunk
+// packs to a ~1220-byte request and is silently dropped, so stay well under.
 //
-// Measured accept rate by chunk size (full-length writes, same connection):
-//   16 -> 66 byte request, 10/10     24 -> 75 byte request, 6/6
-//   32 -> 84 byte request, 5/6       48 -> 105 byte request, total failure
-// 24 wins on throughput: 16 is equally reliable but moves less per round trip,
-// and by 32 the accept rate costs more than the extra payload gains. Nothing
-// fits in one USB transfer (the JSON alone is ~41 bytes), so this only narrows
-// the exposure - the size check in writeFile is what guarantees integrity.
-const WRITE_CHUNK_SIZE = 24;
+// This was 24 while the firmware dropped inbound SysEx spanning more than one
+// 64-byte USB transfer (DelugeFirmware#4762 / fixed by #4633, shipped in
+// c1.3.0). Measured on fixed firmware over real USB: 128/256/512-byte chunks
+// each wrote a 16KB file with zero short writes and verified byte-for-byte,
+// at 12/20/27 KB/s. On pre-fix firmware a request this size fails outright,
+// so saves need community firmware 1.3.0 or later - the retry ladder turns
+// that into a hard error, and the size check in writeFile still guarantees
+// integrity either way.
+const WRITE_CHUNK_SIZE = 512;
 const WRITE_CHUNK_ATTEMPTS = 5;
 
 // Deluge SYSEX manufacturer ID and commands (DEx smSysex protocol)
@@ -549,41 +550,23 @@ function handleMidiMessage(event) {
 /**
  * Per-attempt timeouts for sendJson, in milliseconds.
  *
- * The Deluge silently drops any inbound SysEx longer than 48 bytes, a large
- * fraction of the time. 48 bytes is exactly 16 USB-MIDI packets, which is
- * exactly 64 bytes on the wire - the bulk endpoint's max packet size. The
- * firmware arms its receive pipe for one max-packet at a time and the re-arm
- * sits on an SD-blocked task, so a message needing a second USB transfer can
- * lose its tail; the truncated payload then fails to parse and is discarded
- * without any reply. Reported as DelugeFirmware issue #4762, and documented in
+ * Processed requests reply fast - measured 4-30ms with no slow tail, even for
+ * 2KB replies - so a missing reply after the first rung almost always means
+ * the request itself was lost. Every command addresses an explicit
+ * fid/addr/offset, so resending is idempotent and safe.
+ *
+ * On firmware with the USB fix (#4633, c1.3.0+) drops are rare, so this is a
+ * short ladder: a couple of quick resends for the odd lost request, then a
+ * patient tail for operations that may genuinely be slow on the card
+ * (open/close/flush on a large file). Malformed or oversized requests are
+ * still dropped without a reply on stock firmware (DelugeFirmware#4762
+ * defect 2), and pre-#4633 firmware drops most requests over 48 bytes - the
+ * ladder turns both into a clean hard error instead of a hang. The deep
+ * 25-rung ladder that lived here while #4762 was unfixed is documented in
  * docs/deluge-sysex-reliability.md.
- *
- * Measured on community firmware 1.3 beta: 48-byte requests reply 40/40,
- * 49-byte requests 17/40. A dropped request is never processed at all, so no
- * reply is ever coming and waiting longer cannot help - resending is the only
- * recovery. Requests that ARE processed always reply in 21-29ms, with no slow
- * tail, even at 2KB.
- *
- * Every command addresses an explicit fid/addr/offset, so resending is
- * idempotent. The budget is therefore many short attempts rather than a few
- * patient ones, and the early rungs are far shorter than a cautious timeout
- * would be. That matters most for writes: measured drop rate is ~68% per send
- * and successful replies come back in 4-11ms, so the time spent waiting on
- * already-dead attempts IS essentially the whole cost of a save. Dropping the
- * first rung from 400ms to 120ms took a preset save from minutes to seconds.
- *
- * Commands land on either side of the cliff depending on their arguments, so
- * this cannot be avoided by construction - `read` crosses 48 bytes once `addr`
- * grows, `open` crosses it with any real path, and `write` is always over it
- * (see WRITE_CHUNK_SIZE).
- *
- * The long tail exists only for operations that may genuinely be slow on the
- * card (open/close/flush on a large file), not for dropped-request recovery.
  */
 const SEND_ATTEMPT_TIMEOUTS_MS = [
-    ...Array(10).fill(120),
-    ...Array(8).fill(300),
-    ...Array(4).fill(800),
+    400, 400, 800,
     2000, 4000, 10000
 ];
 
@@ -658,9 +641,9 @@ async function sendJson(cmd, binaryPayload = null) {
             });
         } catch (error) {
             lastError = error;
-            // Losing a few requests is normal here, so only get loud once the
-            // resends stop looking routine.
-            const notice = attempt >= 12 ? console.warn : console.log;
+            // A single lost request can still happen, so only get loud once
+            // the resends stop looking routine.
+            const notice = attempt >= 2 ? console.warn : console.log;
             notice('Deluge did not answer ' + Object.keys(cmd).join(',')
                 + ' (' + error.message + ') - resending');
         }
@@ -957,8 +940,8 @@ async function listDirectory(path, forceRefresh = false) {
             allEntries.push(...entries);
             offset += entries.length;
             // A short page means we hit the end of the directory. Stop here
-            // rather than spending another (individually unreliable) round trip
-            // just to be told the next page is empty.
+            // rather than spending another round trip just to be told the
+            // next page is empty.
             hasMore = entries.length >= DELUGE_MAX_DIR_LINES;
         } else {
             hasMore = false;
