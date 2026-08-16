@@ -433,6 +433,9 @@ function renderSampleFileList(entries, path) {
                 showNotification(`✓ Morph folder set to: ${path}`);
             } else if (currentSampleBrowserMode === 'savefolder') {
                 document.getElementById('saveDirectory').value = path;
+                // An explicitly chosen folder overrides the loaded-from
+                // directory, which otherwise wins in sendToDeluge()
+                originalLoadedFilepath = null;
                 closeSampleBrowser();
                 updateSavePathIndicator();
                 showNotification(`✓ Save folder set to: ${path}`);
