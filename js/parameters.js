@@ -529,7 +529,8 @@ function formatDisplayValue(paramName, uiValue) {
         return uiValue.toFixed(0) + ' / 50';
     }
 
-    if (paramName.includes('Attack') || paramName.includes('Decay') || paramName.includes('Release')) {
+    if (paramName.includes('Attack') || paramName.includes('Decay') ||
+        paramName.includes('Sustain') || paramName.includes('Release')) {
         return uiValue.toFixed(0) + ' / 50';
     }
 

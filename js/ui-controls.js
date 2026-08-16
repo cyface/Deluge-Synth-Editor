@@ -119,17 +119,14 @@ function updateParameter(paramName, uiValue, min = -50, max = 50) {
 
 // Update a specific envelope display
 function updateEnvelopeDisplay(envNum) {
-    const sustainMin = envNum === '1' ? 0 : -25;
-    const sustainMax = envNum === '1' ? 50 : 25;
-
     drawEnvelope(
         `env${envNum}Canvas`,
         hexToUI(currentState[`env${envNum}Attack`], 0, 50),
         hexToUI(currentState[`env${envNum}Decay`], 0, 50),
-        hexToUI(currentState[`env${envNum}Sustain`], sustainMin, sustainMax),
+        hexToUI(currentState[`env${envNum}Sustain`], 0, 50),
         hexToUI(currentState[`env${envNum}Release`], 0, 50),
-        sustainMin,
-        sustainMax
+        0,
+        50
     );
 }
 

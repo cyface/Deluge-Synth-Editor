@@ -52,11 +52,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeKnobs();
     renderPatchCables();
 
-    // Initialize envelope canvases
-    drawEnvelope('env1Canvas', 0, 25, 50, 10, 0, 50);
-    drawEnvelope('env2Canvas', 25, 25, 0, 25, -25, 25);
-    drawEnvelope('env3Canvas', 25, 25, 0, 25, -25, 25);
-    drawEnvelope('env4Canvas', 25, 25, 0, 25, -25, 25);
+    // Initialize envelope canvases (values match what the defaults resolve to)
+    drawEnvelope('env1Canvas', 0, 20, 50, 1, 0, 50);
+    drawEnvelope('env2Canvas', 20, 20, 25, 20, 0, 50);
+    drawEnvelope('env3Canvas', 20, 20, 25, 20, 0, 50);
+    drawEnvelope('env4Canvas', 20, 20, 25, 20, 0, 50);
 
     // Add change listeners to all inputs to update state
     const inputs = document.querySelectorAll('select, input[type="number"], input[type="text"], input[type="range"]');
