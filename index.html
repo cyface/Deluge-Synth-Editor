@@ -924,6 +924,7 @@
     
     <!-- Deluge Connection -->
     <div class="deluge-connection-wrapper" onclick="toggleDelugeConnection()" style="cursor: pointer;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
         <div id="delugeConnection" class="deluge-connection disconnected" title="Click to connect to Deluge">
         <svg viewBox="0 0 24 24">
             <!-- Plug icon -->
@@ -945,6 +946,8 @@
             <!-- Disconnect slash -->
             <line class="disconnect-slash" x1="4" y1="4" x2="20" y2="20" />
         </svg>
+        </div>
+        <div style="font-size: 11px; color: #888; opacity: 0.8; font-weight: 500;">v1.2</div>
         </div>
         <div id="connectionStatusText" class="connection-status-text">Connect to Deluge</div>
         <!-- MIDI CC Toggle - Only visible when connected -->
@@ -973,9 +976,6 @@
     </a>
     
     <div class="container">
-        <div style="position: fixed; top: 70px; left: 20px; font-size: 12px; color: #888; opacity: 0.8; z-index: 9999; font-weight: 500;">
-            v1.2
-        </div>
         <div style="text-align: center; margin-bottom: 20px;">
             <img src="logo-deluge@2x.png" alt="Deluge Logo" style="max-width: 200px; height: auto;">
         </div>
