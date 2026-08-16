@@ -812,6 +812,11 @@ function parseXML(xmlString) {
         if (lfo4.hasAttribute('syncType')) currentState.lfo4SyncType = lfo4.getAttribute('syncType');
     }
 
+    // Older editor versions wrote "sampleAndHold", which the firmware doesn't recognize; it writes "sah"
+    for (const key of ['lfo1Type', 'lfo2Type', 'lfo3Type', 'lfo4Type']) {
+        if (currentState[key] === 'sampleAndHold') currentState[key] = 'sah';
+    }
+
     // Parse unison
     const unison = sound.querySelector('unison');
     if (unison) {
@@ -1084,6 +1089,10 @@ function updateUIFromState() {
 
     if (typeof updateModFXLabels === 'function') {
         updateModFXLabels();
+    }
+
+    if (typeof updateSyncTypeStates === 'function') {
+        updateSyncTypeStates();
     }
 
     // Show/hide DX7 panels based on oscillator types (hide covers reset /

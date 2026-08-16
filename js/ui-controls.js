@@ -687,6 +687,22 @@ function updateModFXLabels() {
     });
 }
 
+// Sync type (even/triplet/dotted) only applies when a sync level is set;
+// with sync level Off the firmware never reads it, so gray it out.
+const SYNC_PAIR_PREFIXES = ['lfo1', 'lfo2', 'lfo3', 'lfo4', 'delay', 'sidechain', 'arp'];
+
+function updateSyncTypeStates() {
+    SYNC_PAIR_PREFIXES.forEach(prefix => {
+        const level = document.getElementById(prefix + 'SyncLevel');
+        const type = document.getElementById(prefix + 'SyncType');
+        if (!level || !type) return;
+        const off = level.value === '0';
+        type.disabled = off;
+        const group = type.closest('.control-group');
+        if (group) group.classList.toggle('param-not-applicable', off);
+    });
+}
+
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     setupOscillatorTypeListeners();
@@ -700,4 +716,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const modFXTypeSelect = document.getElementById('modFXType');
     if (modFXTypeSelect) modFXTypeSelect.addEventListener('change', updateModFXLabels);
     updateModFXLabels();
+
+    SYNC_PAIR_PREFIXES.forEach(prefix => {
+        const el = document.getElementById(prefix + 'SyncLevel');
+        if (el) el.addEventListener('change', updateSyncTypeStates);
+    });
+    updateSyncTypeStates();
 });
