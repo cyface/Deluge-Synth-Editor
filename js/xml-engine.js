@@ -181,7 +181,9 @@ function generateXML() {
     if (currentState.osc1Type === 'dx7') {
         
         if (currentState.osc1DX7Patch) {
-            xml += `\n\t\tdx7patch="${currentState.osc1DX7Patch}"`;
+            // Normalize to the 156-byte uppercase form the firmware writes
+            // (155-byte patches from older files gain the operator-enable byte)
+            xml += `\n\t\tdx7patch="${normalizeDX7PatchHex(currentState.osc1DX7Patch) || currentState.osc1DX7Patch}"`;
             if (currentState.osc1DX7EngineMode && currentState.osc1DX7EngineMode !== '0') {
                 xml += `\n\t\tdx7enginemode="${currentState.osc1DX7EngineMode}"`;
             }
@@ -226,7 +228,7 @@ function generateXML() {
     if (currentState.osc2Type === 'dx7') {
         
         if (currentState.osc2DX7Patch) {
-            xml += `\n\t\tdx7patch="${currentState.osc2DX7Patch}"`;
+            xml += `\n\t\tdx7patch="${normalizeDX7PatchHex(currentState.osc2DX7Patch) || currentState.osc2DX7Patch}"`;
             if (currentState.osc2DX7EngineMode && currentState.osc2DX7EngineMode !== '0') {
                 xml += `\n\t\tdx7enginemode="${currentState.osc2DX7EngineMode}"`;
             }

@@ -71,11 +71,13 @@ Generate creative, musical patches with granular control:
 - Overwrite protection with confirmation dialogs
 
 ### 🎹 **DX7 FM Synthesis Support**
-- Load Yamaha DX7 patches (.syx files) directly from Deluge SD card via SYSEX
+- Load Yamaha DX7 patches (.syx files) from the Deluge SD card via SYSEX **or from your computer**
 - Cartridge support - browse and select individual patches from 32-voice cartridge banks
+- **Built-in DX7 patch editor**: all 6 operators (envelopes, frequency ratio/fixed, detune, output level, velocity/amp-mod sensitivity, keyboard scaling), algorithm with carrier hints, feedback, pitch envelope, LFO, transpose, and patch name
+- Per-operator on/off switches (Deluge firmware extension) and "Init Patch" to start a voice from scratch
 - Complete 156-byte voice data embedded in XML for round-trip editing
 - Deluge-specific parameters: Engine mode (Auto/Modern/Mark I) and analog-style random detune (0-100)
-- Patches editable on Deluge hardware or in Dexed external editor, with full operator/envelope control preserved
+- Patches also editable on Deluge hardware or in Dexed external editor, with full operator/envelope control preserved
 
 ## Quick Start
 

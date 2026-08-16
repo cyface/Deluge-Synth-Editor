@@ -356,3 +356,37 @@ Deliberately kept:
 Consequence: saving requires community firmware c1.3.0 or later. On older
 firmware a 512-byte write request is dropped essentially every time, so saves
 fail with a clear error after the retry ladder - they do not corrupt.
+
+---
+
+## The dx7patch attribute is 156 bytes, and the operators are stored backwards
+
+**Decision: a `dx7patch` is always written as 156 hex-encoded bytes (155-byte
+unpacked VCED voice + one operator-enable byte), and the editor maps OP*n* to
+VCED offset `(6-n)*21` and enable bit `6-n`. Do not "simplify" either.**
+
+Three things here look like bugs and are not:
+
+- **156, not 155.** A DX7 VCED voice is 155 bytes. The Deluge appends one
+  extra byte: a per-operator enable bitmask (all on = `0x3F`), its own
+  extension for muting operators from the sound editor. The firmware reads
+  exactly 156 bytes (`Sound::readTagFromFile`, `sound.cpp:3374-3377`) and
+  writes exactly 156 (`writer.writeAttributeHexBytes("dx7patch",
+  patch->params, 156)`, `sound.cpp:3724`). Patches stored as 155 bytes by
+  older editor versions are upgraded on save by appending `3F`
+  (`normalizeDX7PatchHex`).
+- **Operator order is reversed.** In VCED data OP6 occupies bytes 0-20 and
+  OP1 bytes 105-125 - that is Yamaha's sysex layout, confirmed by the
+  firmware menu mapping "operator 1" to slot 5 (`dx/global_params.cpp`,
+  `dxOperatorParams.op = 6 + index` with index -1). The enable bitmask uses
+  the same slot index, so OP1 = bit 5 and OP6 = bit 0 (`DxPatch::opSwitch`,
+  `dx7note.h:44`).
+- **Two byte-offset comment sets disagreed; the Python tool's are right.**
+  VCED per-op byte 13 is rate scaling and byte 20 is detune; byte 14 is
+  amp-mod sensitivity and 15 is velocity sensitivity. `js/dx7.js` had these
+  comment pairs swapped (the byte math was always identical); fixed when the
+  patch editor was added. The editor's algorithm carrier table is derived
+  from `FmCore::algorithms` (`fm_core.cpp:21`), ops with output bus ADD.
+
+Evidence that would change this: the firmware changing the meaning of byte
+155 or accepting variable-length patches.

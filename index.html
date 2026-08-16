@@ -591,6 +591,53 @@
             color: #888;
         }
 
+        /* DX7 patch editor */
+        .dx7-editor .modal-content {
+            max-width: 1050px;
+            max-height: 90vh;
+        }
+
+        .dx7-op-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .dx7-op-table th,
+        .dx7-op-table td {
+            padding: 3px 4px;
+            text-align: center;
+        }
+
+        .dx7-op-table td:first-child {
+            text-align: left;
+            color: #aaa;
+            white-space: nowrap;
+        }
+
+        .dx7-op-table input[type="number"] {
+            width: 52px;
+            padding: 4px;
+        }
+
+        .dx7-op-table select {
+            width: 68px;
+            padding: 4px;
+        }
+
+        .dx7-section-row td {
+            background: #222;
+            color: var(--accent-color);
+            text-align: left !important;
+            font-weight: bold;
+            padding-top: 8px;
+        }
+
+        .dx7-freq-row td {
+            color: #888;
+            font-family: monospace;
+        }
+
         /* Deluge Connection Container */
         .deluge-connection-wrapper {
             position: fixed;
@@ -1116,6 +1163,9 @@
                     <!-- Load Controls -->
                     <div style="margin-bottom: 15px;">
                         <button onclick="browseDX7ForOsc(1)">📁 Browse DX7 on Deluge</button>
+                        <button onclick="loadDX7SyxFromComputer(1)" style="margin-left: 10px;">💻 Load .syx File</button>
+                        <button onclick="openDX7Editor(1)" style="margin-left: 10px;">🎛️ Edit Patch</button>
+                        <button onclick="initDX7Patch(1)" style="margin-left: 10px;">✨ Init Patch</button>
                         <button onclick="clearDX7Patch(1)" style="margin-left: 10px; background: #cc0000;">✕ Clear</button>
                     </div>
                     
@@ -1226,6 +1276,9 @@
                     <!-- Load Controls -->
                     <div style="margin-bottom: 15px;">
                         <button onclick="browseDX7ForOsc(2)">📁 Browse DX7 on Deluge</button>
+                        <button onclick="loadDX7SyxFromComputer(2)" style="margin-left: 10px;">💻 Load .syx File</button>
+                        <button onclick="openDX7Editor(2)" style="margin-left: 10px;">🎛️ Edit Patch</button>
+                        <button onclick="initDX7Patch(2)" style="margin-left: 10px;">✨ Init Patch</button>
                         <button onclick="clearDX7Patch(2)" style="margin-left: 10px; background: #cc0000;">✕ Clear</button>
                     </div>
                     
