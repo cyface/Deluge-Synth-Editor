@@ -100,6 +100,19 @@
             box-shadow: 0 6px 16px rgba(0,0,0,0.7);
         }
 
+        /* At mid widths the fixed connection cluster (which widens with the
+           MIDI CC controls when connected) collides with the centered logo -
+           drop it into the page flow above the header instead */
+        @media (max-width: 1300px) {
+            .deluge-connection-wrapper {
+                position: relative !important;
+                top: auto;
+                left: auto;
+                margin: 10px 10px 15px;
+                flex-wrap: wrap;
+            }
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .theme-switcher {
