@@ -1000,14 +1000,23 @@ function parseXML(xmlString) {
     // firmware defaults are a better answer than a misaligned guess.
     const modKnobElements = sound.querySelectorAll('modKnobs > modKnob');
     modKnobs = DEFAULT_MOD_KNOBS.map(knob => ({ ...knob }));
+    // Old firmware (pre-3.x) wrote the fields as child elements
+    // (<controlsParam>pan</controlsParam>) instead of attributes.
+    const knobField = (el, name) => {
+        if (el.hasAttribute(name)) return el.getAttribute(name);
+        const child = el.querySelector(name);
+        return child ? child.textContent.trim() : null;
+    };
     if (modKnobElements.length === DEFAULT_MOD_KNOBS.length) {
         modKnobElements.forEach((el, i) => {
-            const knob = { controlsParam: el.getAttribute('controlsParam') || 'none' };
-            if (el.hasAttribute('patchAmountFromSource')) {
-                knob.patchAmountFromSource = el.getAttribute('patchAmountFromSource');
+            const knob = { controlsParam: knobField(el, 'controlsParam') || 'none' };
+            const source = knobField(el, 'patchAmountFromSource');
+            if (source) {
+                knob.patchAmountFromSource = source;
             }
-            if (el.hasAttribute('patchAmountFromSecondSource')) {
-                knob.patchAmountFromSecondSource = el.getAttribute('patchAmountFromSecondSource');
+            const secondSource = knobField(el, 'patchAmountFromSecondSource');
+            if (secondSource) {
+                knob.patchAmountFromSecondSource = secondSource;
             }
             modKnobs[i] = knob;
 
