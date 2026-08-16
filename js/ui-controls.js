@@ -282,6 +282,26 @@ function updatePatchCable(index, field, value) {
     }
 }
 
+// The FM-only destinations get explicit labels; the Deluge calls
+// modulator amount "Mod level" (params::LOCAL_MODULATOR_n_VOLUME).
+const FM_DEST_LABELS = {
+    carrier1Feedback: 'Carrier 1 Feedback (FM)',
+    carrier2Feedback: 'Carrier 2 Feedback (FM)',
+    modulator1Amount: 'Modulator 1 Level (FM)',
+    modulator1Feedback: 'Modulator 1 Feedback (FM)',
+    modulator2Amount: 'Modulator 2 Level (FM)',
+    modulator2Feedback: 'Modulator 2 Feedback (FM)',
+};
+
+function formatModDestinationLabel(dest) {
+    if (FM_DEST_LABELS[dest]) return FM_DEST_LABELS[dest];
+    return (dest.charAt(0).toUpperCase() + dest.slice(1).replace(/([A-Z])/g, ' $1'))
+        .replace(/\bLpf\b/, 'LPF')
+        .replace(/\bHpf\b/, 'HPF')
+        .replace(/\bLfo/, 'LFO')
+        .replace(/\bMod F X\b/, 'Mod FX');
+}
+
 function renderPatchCables() {
     const container = document.getElementById('patchCablesContainer');
     container.innerHTML = '';
@@ -295,7 +315,7 @@ function renderPatchCables() {
         modSources.forEach(source => {
             const option = document.createElement('option');
             option.value = source;
-            option.textContent = source.charAt(0).toUpperCase() + source.slice(1);
+            option.textContent = modSourceLabels[source] || (source.charAt(0).toUpperCase() + source.slice(1));
             if (source === cable.source) option.selected = true;
             sourceSelect.appendChild(option);
         });
@@ -306,7 +326,7 @@ function renderPatchCables() {
         modDestinations.forEach(dest => {
             const option = document.createElement('option');
             option.value = dest;
-            option.textContent = dest.charAt(0).toUpperCase() + dest.slice(1).replace(/([A-Z])/g, ' $1');
+            option.textContent = formatModDestinationLabel(dest);
             if (dest === cable.destination) option.selected = true;
             destSelect.appendChild(option);
         });

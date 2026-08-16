@@ -272,11 +272,26 @@ const OSC_VALUE_TAGS = ['type', 'transpose', 'cents', 'retrigPhase', 'oscillator
 
 // Modulation sources and destinations
 const modSources = [
-    'none', 'lfo1', 'lfo2', 'lfo3', 'lfo4', 
+    'none', 'lfo1', 'lfo2', 'lfo3', 'lfo4',
     'envelope1', 'envelope2', 'envelope3', 'envelope4',
     'velocity', 'note', 'aftertouch', 'x', 'y',
     'compressor', 'random'
 ];
+
+// Display labels for patch cable sources. The XML values above stay as-is.
+// X/Y get their MIDI meanings spelled out: the firmware maps an external mod
+// wheel to mono expression Y (MPE CC74 to poly Y) and pitch bend to X
+// (melodic_instrument.cpp).
+const modSourceLabels = {
+    none: 'None',
+    lfo1: 'LFO1', lfo2: 'LFO2', lfo3: 'LFO3', lfo4: 'LFO4',
+    envelope1: 'Envelope 1', envelope2: 'Envelope 2',
+    envelope3: 'Envelope 3', envelope4: 'Envelope 4',
+    velocity: 'Velocity', note: 'Note (Key Tracking)',
+    aftertouch: 'Aftertouch',
+    x: 'X (Pitch Bend)', y: 'Y (Mod Wheel)',
+    compressor: 'Sidechain', random: 'Random'
+};
 
 // <arpeggiator> attributes generateXML() writes itself. Everything else there -
 // the locked probability arrays, notePattern, and the lastLocked* values - is
