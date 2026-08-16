@@ -78,6 +78,33 @@ async function sendToDeluge() {
 }
 
 // ============================================================================
+// RETRIG PHASE CONVERSION
+// ============================================================================
+
+// The firmware stores retrig phase as degrees * (2^32/360), serialized
+// through a signed-int32 writer: OFF is -1 (0xFFFFFFFF) and phases above
+// 180 degrees appear as other negative numbers. Its own menu divides by
+// 11930464 to show degrees (osc/retrigger_phase.h). The editor keeps
+// degrees (-1..360) in state and converts at the XML boundary.
+const RETRIG_PHASE_PER_DEGREE = 11930464;
+
+function retrigPhaseToDegrees(value) {
+    const n = parseInt(value);
+    if (isNaN(n) || n === -1) return '-1';
+    if (n >= 0 && n <= 360) return String(n); // already degrees (older editor-written file)
+    const raw = n < 0 ? n + 4294967296 : n;
+    return String(Math.round(raw / RETRIG_PHASE_PER_DEGREE));
+}
+
+function degreesToRetrigPhase(value) {
+    const n = parseInt(value);
+    if (isNaN(n) || n < 0) return '-1';
+    let raw = Math.min(n, 360) * RETRIG_PHASE_PER_DEGREE;
+    if (raw > 2147483647) raw -= 4294967296; // match the firmware's signed writer
+    return String(raw);
+}
+
+// ============================================================================
 // XML GENERATION
 // ============================================================================
 
@@ -170,7 +197,7 @@ function generateXML() {
     }
     xml += `\n\t\ttranspose="${currentState.osc1Transpose}"`;
     xml += `\n\t\tcents="${currentState.osc1Cents}"`;
-    xml += `\n\t\tretrigPhase="${currentState.osc1RetrigPhase}"`;
+    xml += `\n\t\tretrigPhase="${degreesToRetrigPhase(currentState.osc1RetrigPhase)}"`;
     
     // Add fileName attribute if specified for sample/wavetable
     if (currentState.osc1File && (currentState.osc1Type === 'sample' || currentState.osc1Type === 'wavetable')) {
@@ -217,7 +244,7 @@ function generateXML() {
     if (currentState.osc2Sync === '1') {
         xml += `\n\t\toscillatorSync="${currentState.osc2Sync}"`;
     }
-    xml += `\n\t\tretrigPhase="${currentState.osc2RetrigPhase}"`;
+    xml += `\n\t\tretrigPhase="${degreesToRetrigPhase(currentState.osc2RetrigPhase)}"`;
     
     // Add fileName attribute if specified for sample/wavetable
     if (currentState.osc2File && (currentState.osc2Type === 'sample' || currentState.osc2Type === 'wavetable')) {
@@ -621,6 +648,7 @@ function parseXML(xmlString) {
 
         if (osc1.querySelector('retrigPhase')) currentState.osc1RetrigPhase = osc1.querySelector('retrigPhase').textContent;
         else if (osc1.hasAttribute('retrigPhase')) currentState.osc1RetrigPhase = osc1.getAttribute('retrigPhase');
+        currentState.osc1RetrigPhase = retrigPhaseToDegrees(currentState.osc1RetrigPhase);
         
         if (osc1.hasAttribute('isTracking')) currentState.osc1IsTracking = osc1.getAttribute('isTracking');
 
@@ -663,6 +691,7 @@ function parseXML(xmlString) {
 
         if (osc2.querySelector('retrigPhase')) currentState.osc2RetrigPhase = osc2.querySelector('retrigPhase').textContent;
         else if (osc2.hasAttribute('retrigPhase')) currentState.osc2RetrigPhase = osc2.getAttribute('retrigPhase');
+        currentState.osc2RetrigPhase = retrigPhaseToDegrees(currentState.osc2RetrigPhase);
         
         if (osc2.hasAttribute('isTracking')) currentState.osc2IsTracking = osc2.getAttribute('isTracking');
 
