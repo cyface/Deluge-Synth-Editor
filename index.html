@@ -604,6 +604,13 @@
             color: #888;
         }
 
+        /* Knobs whose parameter has no effect for the current synth mode /
+           osc type (mirrors the firmware's own menu relevance) */
+        .control-group.param-not-applicable {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
         /* DX7 patch editor */
         .dx7-editor .modal-content {
             max-width: 1050px;

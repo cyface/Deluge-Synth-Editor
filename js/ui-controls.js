@@ -571,7 +571,51 @@ function setupOscillatorTypeListeners() {
     }
 }
 
+// ============================================================================
+// KNOB RELEVANCE
+// ============================================================================
+
+// Gray out knobs the firmware's own menus hide for the current synth mode /
+// oscillator type (the isRelevant() checks in gui/menu_item/osc/...):
+// - pulse width: hidden in FM mode and for sample oscillators. The firmware
+//   nominally still shows it for dx7, but it has no effect there, so the
+//   editor grays it too. It stays active for sine/triangle/saw - community
+//   firmware applies phase-width to all analog waveforms, not just square.
+// - wavetable position: only for wavetable oscillators outside FM mode.
+// - FM modulator/carrier knobs: only in FM synth mode.
+function updateKnobRelevance() {
+    const readSelect = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value : currentState[id];
+    };
+    const fm = readSelect('mode') === 'fm';
+
+    const setApplicable = (knobId, applicable) => {
+        const knob = document.getElementById(knobId);
+        if (!knob) return;
+        const group = knob.closest('.control-group');
+        if (group) group.classList.toggle('param-not-applicable', !applicable);
+    };
+
+    [['A', 'osc1Type'], ['B', 'osc2Type']].forEach(([letter, typeId]) => {
+        const type = readSelect(typeId);
+        setApplicable(`osc${letter}PulseWidthKnob`, !fm && type !== 'sample' && type !== 'dx7');
+        setApplicable(`osc${letter}WavetablePositionKnob`, !fm && type === 'wavetable');
+    });
+
+    ['modulator1Amount', 'modulator1Feedback', 'modulator2Amount',
+     'modulator2Feedback', 'carrier1Feedback', 'carrier2Feedback'].forEach(param => {
+        setApplicable(param + 'Knob', fm);
+    });
+}
+
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     setupOscillatorTypeListeners();
+
+    ['mode', 'osc1Type', 'osc2Type'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', updateKnobRelevance);
+    });
+    updateKnobRelevance();
 });
