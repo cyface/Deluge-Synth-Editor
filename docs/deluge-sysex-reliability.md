@@ -4,8 +4,32 @@ Notes from debugging "Session negotiation timed out after 15 seconds" and
 "Command timeout (10s). Check Deluge connection." against **community firmware
 1.3 beta**, and what this fork does about it.
 
+> **Status update, 2026-08-15: the inbound USB drop (section 2's headline
+> defect) is fixed in firmware.** Upstream PR
+> [#4633](https://github.com/SynthstromAudible/DelugeFirmware/pull/4633)
+> ("Fix USB MIDI receive packet loss + chainload corruption") shipped in
+> community firmware **c1.3.0**. Re-measured on c1.3.0 over real USB: 40/40
+> replies to 55-195 byte requests, and 512-byte write chunks wrote a 16KB file
+> with zero short writes, verified byte-for-byte, at 27 KB/s. The editor's
+> workarounds are backed out accordingly: `WRITE_CHUNK_SIZE` is back to 512
+> (the protocol's design size; the remaining ceiling is the firmware's
+> `MaxSysExLength` of 1024 total SysEx bytes), and the deep retry ladder is
+> trimmed to a few attempts plus the slow-SD tail. The `^write.size` check and
+> the full read-back verification are deliberately kept: they are cheap now,
+> and on pre-fix firmware they turn the old silent corruption into a hard
+> error. Saves effectively require c1.3.0 or later.
+>
+> Still true on c1.3.0: a request whose JSON does not match any command tag is
+> dropped with no reply (defect 2 of
+> [#4762](https://github.com/SynthstromAudible/DelugeFirmware/issues/4762) -
+> reproduced on hardware 2026-08-15: `{"bogus":{}}`, bare garbage, and `{}` all
+> get silence, and truncated JSON like `{"dir":{"path":` executes with default
+> arguments). A fix exists on the `fix/smsysex-silent-drop` branch, pending PR.
+> The rest of this document is kept as the diagnosis record; sizes and drop
+> rates below describe **1.3 beta**, not current firmware.
+
 There are two independent problems here. The first was a bug in this editor and
-is fixed. The second is in the firmware, and can only be worked around.
+is fixed. The second was in the firmware, fixed in c1.3.0 as noted above.
 
 ---
 
@@ -73,7 +97,7 @@ So the 8th command in fallback mode would always hang. The fallback now uses
 
 ---
 
-## 2. The Deluge silently drops queued SysEx commands (firmware limitation)
+## 2. The Deluge silently drops queued SysEx commands (firmware defect, fixed in c1.3.0)
 
 ### Symptom
 
@@ -250,14 +274,15 @@ reported the drop rate "worsening over a session". That was wrong: the varying
 rate was an artefact of comparing differently sized messages. The queued path
 itself is reliable, as the 19-byte JSON ping shows.
 
-### Workaround in this fork
+### Workaround in this fork (now backed out — see status update at top)
 
 `sendJson()` resends on timeout. Because a dropped request is never processed,
 and because every command addresses an explicit `fid`/`addr`/`offset`,
 resending is idempotent.
 
-The retry budget is shaped by the measurements above — many short attempts
-rather than a few patient ones, since waiting never helps:
+While the defect was live, the retry budget was shaped by the measurements
+above — many short attempts rather than a few patient ones, since waiting never
+helps:
 
 ```js
 const SEND_ATTEMPT_TIMEOUTS_MS = [
@@ -265,6 +290,10 @@ const SEND_ATTEMPT_TIMEOUTS_MS = [
     2000, 4000, 10000         // tail for genuinely slow SD card operations
 ];
 ```
+
+With the firmware fixed this is trimmed to a few quick resends plus the
+slow-SD tail; resend-on-timeout itself stays, since it is also what converts
+defect 2's silent drop into a clean error.
 
 Each attempt takes a fresh message ID, so a late reply to an abandoned attempt
 can never be mistaken for the current one.
@@ -416,7 +445,10 @@ looks like USB.
 
 ## 4. Open questions
 
-Both of these need hardware and are **not yet tested**.
+Overtaken by events: the firmware fix (#4633) landed before either test was
+run. The padded-ping experiment is moot now that large inbound requests are
+reliable, and the partial-progress write resume is no longer worth its risk
+since short writes no longer occur on fixed firmware. Kept for the record.
 
 ### The test that removes the client from the argument
 

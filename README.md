@@ -71,11 +71,14 @@ Generate creative, musical patches with granular control:
 - Overwrite protection with confirmation dialogs
 
 ### 🎹 **DX7 FM Synthesis Support**
-- Load Yamaha DX7 patches (.syx files) directly from Deluge SD card via SYSEX
+- Load Yamaha DX7 patches (.syx files) from the Deluge SD card via SYSEX **or from your computer**
+- **Download the current voice as a standard single-voice .syx** for external editors (Dexed, etc.) or a real DX7
 - Cartridge support - browse and select individual patches from 32-voice cartridge banks
+- **Built-in DX7 patch editor**: all 6 operators (envelopes, frequency ratio/fixed, detune, output level, velocity/amp-mod sensitivity, keyboard scaling), algorithm with carrier hints, feedback, pitch envelope, LFO, transpose, and patch name
+- Per-operator on/off switches (Deluge firmware extension) and "Init Patch" to start a voice from scratch
 - Complete 156-byte voice data embedded in XML for round-trip editing
 - Deluge-specific parameters: Engine mode (Auto/Modern/Mark I) and analog-style random detune (0-100)
-- Patches editable on Deluge hardware or in Dexed external editor, with full operator/envelope control preserved
+- Patches also editable on Deluge hardware or in Dexed external editor, with full operator/envelope control preserved
 
 ## Quick Start
 
@@ -339,7 +342,7 @@ Preserved when loading and saving files:
 - `tools/relink_card_paths.py` - offline helper that repoints the `presetFolder` / `instrumentPresetFolder` / `path` / `fileName` references in a card's XML at what is actually on disk (`python3 tools/relink_card_paths.py /Volumes/DELUGE --rename FAMO=Famous --apply`). Each path component is matched case-insensitively against the real directory entries, so casing drift is fixed with no configuration; only folders that changed by more than case need a `--rename`. Paths that still don't resolve are listed rather than rewritten to a guess. Dry-runs unless given `--apply`; `--backup DIR` keeps copies. Note that a song can carry a preset inline, in which case `presetName` resolves inside the song rather than against the card - those show up as unresolved but are not broken.
 
 ### Further Reading
-- [SysEx reliability](docs/deluge-sysex-reliability.md) - session timeouts, dropped commands, and why saves are chunked and verified
+- [SysEx reliability](docs/deluge-sysex-reliability.md) - the firmware USB drop (fixed in c1.3.0) that shaped the save path, and why saves are still chunked and verified. Saving requires community firmware c1.3.0 or later.
 - [Decisions](docs/decisions.md) - choices that look wrong but are deliberate, and earlier conclusions that turned out to be wrong
 
 ## Known Limitations

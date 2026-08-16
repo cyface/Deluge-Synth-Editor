@@ -100,6 +100,19 @@
             box-shadow: 0 6px 16px rgba(0,0,0,0.7);
         }
 
+        /* At mid widths the fixed connection cluster (which widens with the
+           MIDI CC controls when connected) collides with the centered logo -
+           drop it into the page flow above the header instead */
+        @media (max-width: 1300px) {
+            .deluge-connection-wrapper {
+                position: relative !important;
+                top: auto;
+                left: auto;
+                margin: 10px 10px 15px;
+                flex-wrap: wrap;
+            }
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .theme-switcher {
@@ -589,6 +602,53 @@
             text-align: center;
             padding: 20px;
             color: #888;
+        }
+
+        /* DX7 patch editor */
+        .dx7-editor .modal-content {
+            max-width: 1050px;
+            max-height: 90vh;
+        }
+
+        .dx7-op-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .dx7-op-table th,
+        .dx7-op-table td {
+            padding: 3px 4px;
+            text-align: center;
+        }
+
+        .dx7-op-table td:first-child {
+            text-align: left;
+            color: #aaa;
+            white-space: nowrap;
+        }
+
+        .dx7-op-table input[type="number"] {
+            width: 52px;
+            padding: 4px;
+        }
+
+        .dx7-op-table select {
+            width: 68px;
+            padding: 4px;
+        }
+
+        .dx7-section-row td {
+            background: #222;
+            color: var(--accent-color);
+            text-align: left !important;
+            font-weight: bold;
+            padding-top: 8px;
+        }
+
+        .dx7-freq-row td {
+            color: #888;
+            font-family: monospace;
         }
 
         /* Deluge Connection Container */
@@ -1114,9 +1174,13 @@
                     <h3 style="margin: 0 0 15px 0;">DX7 FM Synthesis</h3>
                     
                     <!-- Load Controls -->
-                    <div style="margin-bottom: 15px;">
+                    <div style="margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px;">
                         <button onclick="browseDX7ForOsc(1)">📁 Browse DX7 on Deluge</button>
-                        <button onclick="clearDX7Patch(1)" style="margin-left: 10px; background: #cc0000;">✕ Clear</button>
+                        <button onclick="loadDX7SyxFromComputer(1)">💻 Load .syx File</button>
+                        <button onclick="openDX7Editor(1)">🎛️ Edit Patch</button>
+                        <button onclick="initDX7Patch(1)">✨ Init Patch</button>
+                        <button onclick="downloadDX7Syx(1)" title="Save the current voice as a standard single-voice DX7 sysex file - editable in external editors like Dexed, or loadable on a real DX7">💾 Download .syx</button>
+                        <button onclick="clearDX7Patch(1)" style="background: #cc0000;">✕ Clear</button>
                     </div>
                     
                     <!-- Patch Info -->
@@ -1147,10 +1211,6 @@
                             <label class="control-label" title="Adds analog-style random detuning per voice (makes sound warmer/wider)">Random Detune: <span id="osc1DX7RandomDetuneValue">0</span></label>
                             <input type="range" id="osc1DX7RandomDetune" min="0" max="100" value="0" style="width: 100%;" title="0=No detune (digital), 100=Maximum analog warmth">
                         </div>
-                    </div>
-                    
-                    <div style="margin-top: 10px; font-size: 12px; color: #888;">
-                        <a href="https://asb2m10.github.io/dexed/" target="_blank" style="color: #4CAF50;">Edit in Dexed →</a>
                     </div>
                 </div>
             </div>
@@ -1224,9 +1284,13 @@
                     <h3 style="margin: 0 0 15px 0;">DX7 FM Synthesis</h3>
                     
                     <!-- Load Controls -->
-                    <div style="margin-bottom: 15px;">
+                    <div style="margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px;">
                         <button onclick="browseDX7ForOsc(2)">📁 Browse DX7 on Deluge</button>
-                        <button onclick="clearDX7Patch(2)" style="margin-left: 10px; background: #cc0000;">✕ Clear</button>
+                        <button onclick="loadDX7SyxFromComputer(2)">💻 Load .syx File</button>
+                        <button onclick="openDX7Editor(2)">🎛️ Edit Patch</button>
+                        <button onclick="initDX7Patch(2)">✨ Init Patch</button>
+                        <button onclick="downloadDX7Syx(2)" title="Save the current voice as a standard single-voice DX7 sysex file - editable in external editors like Dexed, or loadable on a real DX7">💾 Download .syx</button>
+                        <button onclick="clearDX7Patch(2)" style="background: #cc0000;">✕ Clear</button>
                     </div>
                     
                     <!-- Patch Info -->
@@ -1257,10 +1321,6 @@
                             <label class="control-label" title="Adds analog-style random detuning per voice (makes sound warmer/wider)">Random Detune: <span id="osc2DX7RandomDetuneValue">0</span></label>
                             <input type="range" id="osc2DX7RandomDetune" min="0" max="100" value="0" style="width: 100%;" title="0=No detune (digital), 100=Maximum analog warmth">
                         </div>
-                    </div>
-                    
-                    <div style="margin-top: 10px; font-size: 12px; color: #888;">
-                        <a href="https://asb2m10.github.io/dexed/" target="_blank" style="color: #4CAF50;">Edit in Dexed →</a>
                     </div>
                 </div>
             </div>
