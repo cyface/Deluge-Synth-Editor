@@ -521,18 +521,16 @@ function formatDisplayValue(paramName, uiValue) {
         return uiValue.toFixed(0) + ' / 50';
     }
 
-    // LFO Rate (approximate Hz)
+    // LFO rate and envelope times: like filter frequency, the firmware's
+    // actual curves are exponential around per-param neutral values, so the
+    // Hz/ms figures shown here before were fiction. Show the Deluge's own
+    // 0-50 menu number instead.
     if (paramName.includes('Rate') && paramName.includes('lfo')) {
-        const hz = 0.01 + (uiValue / 50) * 50;
-        return hz.toFixed(2) + ' Hz';
+        return uiValue.toFixed(0) + ' / 50';
     }
 
-    // Envelope times (rough approximation in ms)
     if (paramName.includes('Attack') || paramName.includes('Decay') || paramName.includes('Release')) {
-        const ms = Math.pow(10, uiValue / 16.67) * 0.5;
-        if (ms < 10) return ms.toFixed(1) + ' ms';
-        if (ms < 1000) return ms.toFixed(0) + ' ms';
-        return (ms / 1000).toFixed(2) + ' s';
+        return uiValue.toFixed(0) + ' / 50';
     }
 
     // Generic percentage
