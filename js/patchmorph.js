@@ -275,8 +275,9 @@ function morphFilters() {
     // Skip if amount is 0
     if (amount === 0) return;
     
-    // LPF - frequency range is 0 (closed) to 50 (wide open)
-    currentState.lpfFrequency = uiToHex(randRange(10, 50), 0, 50);
+    // LPF - frequency range is 0 (closed) to 50 (wide open); floor of 35 so
+    // randomized patches never come out muffled to the point of near-silence
+    currentState.lpfFrequency = uiToHex(randRange(35, 50), 0, 50);
     currentState.lpfResonance = uiToHex(randRange(0, 50 * amount), 0, 50);
     
     // HPF (more subtle) - frequency range is 0 (closed) to 50 (wide open)
