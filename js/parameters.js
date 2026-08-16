@@ -443,6 +443,39 @@ function patchCableProblem(source, destination) {
     return null;
 }
 
+// Volume-family cable destinations (the params before FIRST_LOCAL_NON_VOLUME /
+// FIRST_GLOBAL_NON_VOLUME in modulation/params/param.h), keyed by the editor
+// state id of the matching knob, valued with the knob's on-screen label. The
+// patcher multiplies cables into these params (combineCablesLinear in
+// patcher.cpp), so a cable can only scale the knob's own level - with the knob
+// all the way down the result is silence no matter what the source does.
+const VOLUME_FAMILY_CABLE_DESTINATIONS = {
+    volume: 'Volume',
+    oscAVolume: 'Osc A Volume',
+    oscBVolume: 'Osc B Volume',
+    noiseVolume: 'Noise Volume',
+    modulator1Amount: 'Modulator 1 Amount',
+    modulator2Amount: 'Modulator 2 Amount',
+    modFXDepth: 'Mod FX Depth',
+    reverbAmount: 'Reverb Amount'
+};
+
+// True if a stored hex param value is the absolute minimum (knob fully down).
+function hexAtMinimum(hex) {
+    return typeof hex === 'string' && (parseInt(hex, 16) >>> 0) === 0x80000000;
+}
+
+// Advisory companion to patchCableProblem: the Deluge does accept the cable,
+// but it currently can't be heard. Returns the reason, or null.
+function patchCableCaution(cable) {
+    const knobLabel = VOLUME_FAMILY_CABLE_DESTINATIONS[cable.destination];
+    if (knobLabel && hexAtMinimum(currentState[cable.destination])) {
+        return 'the Deluge multiplies cables into volume-style parameters, and the '
+            + knobLabel + ' knob is all the way down - raise it to hear this cable';
+    }
+    return null;
+}
+
 // ============================================================================
 // VALUE CONVERSION FUNCTIONS
 // ============================================================================

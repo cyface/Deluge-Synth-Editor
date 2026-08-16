@@ -103,7 +103,15 @@ function updateKnobDisplay(knob, value, min, max) {
 }
 
 function updateParameter(paramName, uiValue, min = -50, max = 50) {
+    const wasAtMinimum = hexAtMinimum(currentState[paramName]);
     currentState[paramName] = uiToHex(uiValue, min, max);
+
+    // A volume-family knob crossing its minimum flips the "cable is silent"
+    // advisory (patchCableCaution), so refresh the matrix on that edge.
+    if (VOLUME_FAMILY_CABLE_DESTINATIONS[paramName]
+            && wasAtMinimum !== hexAtMinimum(currentState[paramName])) {
+        renderPatchCables();
+    }
 
     // Send MIDI CC if enabled
     if (typeof sendMIDICC === 'function') {
@@ -380,6 +388,14 @@ function renderPatchCables() {
             warning.className = 'cable-warning';
             warning.textContent = '⚠ The Deluge ignores this cable: ' + problem + '.';
             row.appendChild(warning);
+        } else {
+            const caution = patchCableCaution(cable);
+            if (caution) {
+                const warning = document.createElement('div');
+                warning.className = 'cable-warning';
+                warning.textContent = '⚠ This cable is currently silent: ' + caution + '.';
+                row.appendChild(warning);
+            }
         }
 
         container.appendChild(row);
