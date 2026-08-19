@@ -378,7 +378,7 @@
 
         .mod-row {
             display: grid;
-            grid-template-columns: 150px 150px 150px 100px 50px;
+            grid-template-columns: 170px 225px 150px 100px 50px;
             gap: 10px;
             align-items: center;
             padding: 10px;
@@ -1905,10 +1905,13 @@
             <div class="section">
                 <h2 class="section-title">Sidechain</h2>
                 <p style="color: #888; font-size: 0.85em; margin: -5px 0 15px;">
-                    The ducking envelope follower. Separate from the Audio Compressor below.
+                    One song-wide sidechain trigger bus. Send Level is how hard this sound's notes hit it
+                    (set high on a kick); the other knobs shape how this sound ducks when anything hits it.
+                    Ducking depth is the Sidechain &rarr; Volume Post Reverb Send cable on the Modulation tab
+                    (the Deluge's "Volume ducking"). Separate from the Audio Compressor below.
                 </p>
                 <div class="controls-grid">
-                    <div class="control-group">
+                    <div class="control-group" title="How strongly this sound's note-ons fire the song-wide sidechain trigger, making other sounds (and the reverb) duck if they listen. Does not affect how this sound itself ducks. The Deluge's own menu only offers this in kits, but the engine honors it for synths too — this slider can set it either way.">
                         <label class="control-label" for="sidechainSend">Send Level</label>
                         <input type="range" id="sidechainSend" min="0" max="2147483647" value="0">
                         <div class="readout" id="sidechainSendReadout">Off</div>

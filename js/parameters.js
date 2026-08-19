@@ -405,6 +405,10 @@ const modDestinations = [
     'modFXRate', 'modFXDepth',
     'delayRate', 'delayFeedback',
     'reverbAmount',
+    // Sidechain ducking depth (the Deluge's "Volume ducking"). volumePostFX is
+    // deliberately absent: maySourcePatchToParam disallows every cable to it
+    // ("manual control only", sound.cpp).
+    'volumePostReverbSend', 'arpRate',
     'env1Attack', 'env1Decay', 'env1Sustain', 'env1Release',
     'env2Attack', 'env2Decay', 'env2Sustain', 'env2Release',
     'env3Attack', 'env3Decay', 'env3Sustain', 'env3Release',
@@ -424,7 +428,8 @@ const modDestinations = [
 const GLOBAL_PATCH_SOURCES = ['lfo1', 'lfo3', 'compressor'];
 const GLOBAL_PATCH_DESTINATIONS = [
     'lfo1Rate', 'lfo3Rate', 'modFXRate', 'modFXDepth',
-    'delayRate', 'delayFeedback', 'reverbAmount'
+    'delayRate', 'delayFeedback', 'reverbAmount',
+    'volumePostReverbSend', 'arpRate'
 ];
 
 // Returns null if the Deluge honors this source/destination pair, otherwise a
@@ -433,6 +438,11 @@ const GLOBAL_PATCH_DESTINATIONS = [
 // envelopes - Envelope 1 already is the volume envelope - and no sidechain,
 // which ducks whole-sound volume on its own instead).
 function patchCableProblem(source, destination) {
+    // GLOBAL_VOLUME_POST_REVERB_SEND accepts only the sidechain (sound.cpp
+    // maySourcePatchToParam) - this cable is the ducking depth.
+    if (destination === 'volumePostReverbSend' && source !== 'compressor') {
+        return 'only the Sidechain can patch to Volume Post Reverb Send (the ducking destination)';
+    }
     if (GLOBAL_PATCH_DESTINATIONS.includes(destination)
             && !GLOBAL_PATCH_SOURCES.includes(source)) {
         return 'only LFO1, LFO3 and Sidechain can modulate whole-sound parameters like this one';
