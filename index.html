@@ -2407,8 +2407,13 @@
                     <li style="margin-bottom: 8px;">
                         On the Deluge, go to
                         <code style="background: #1a1a1a; padding: 1px 5px; border-radius: 3px;">SETTINGS &gt; MIDI &gt; MIDI-FOLLOW &gt; CHANNEL &gt; CHANNEL A</code>
-                        and set it to <strong>1</strong> &mdash; the editor sends on MIDI channel 1.
-                        (Or press <strong>LEARN</strong> in that menu and wiggle any editor knob with MIDI CC on.)
+                        press <strong>LEARN</strong>, then check the <strong>MIDI CC</strong> checkbox in the
+                        editor and wiggle any editor knob &mdash;
+                        the setting should read <strong>MPE LOWER</strong>. (Or dial the value past 16 to
+                        MPE LOWER manually. Setting it to plain <strong>1</strong> does <em>not</em> work:
+                        the editor sends on channel 1 via the Deluge's USB port 2, where channel 1 belongs
+                        to an MPE lower zone by default, so the Deluge classifies those messages as
+                        MPE LOWER rather than channel 1 and a plain-channel setting never matches.)
                     </li>
                     <li style="margin-bottom: 8px;">
                         For two-way sync, also set
@@ -2429,10 +2434,28 @@
                         on your card, click <strong>Load MIDI Follow</strong> so the editor uses your mappings.
                     </li>
                     <li style="margin-bottom: 6px;">
-                        Use MIDI Follow, not the Deluge's per-song MIDI learn &mdash; learned mappings won't track the editor.
+                        Use MIDI Follow, not the Deluge's per-song MIDI learn (audition pad + LEARN) &mdash;
+                        that maps one CC to one knob in one song and won't track the editor. The
+                        <strong>LEARN</strong> option inside the <code style="background: #1a1a1a; padding: 1px 5px; border-radius: 3px;">MIDI-FOLLOW &gt; CHANNEL</code>
+                        menu is different and fine: it just learns the editor's channel.
                     </li>
                     <li style="margin-bottom: 6px;">
                         CC resolution is 7-bit (128 steps), so a knob nudged on one end can land between steps on the other.
+                    </li>
+                </ul>
+
+                <h3 style="color: var(--accent-color); margin: 15px 0 8px;">Troubleshooting</h3>
+                <ul style="margin: 0 0 12px 20px; padding: 0;">
+                    <li style="margin-bottom: 6px;">
+                        <strong>Deluge knobs update the editor, but editor knobs don't affect the Deluge:</strong>
+                        feedback comes in even with <strong>MIDI CC: OFF</strong>, so this one-way state is normal
+                        when either the MIDI CC toggle is off or <strong>CHANNEL A</strong> doesn't match.
+                        Check the toggle is ON, then confirm CHANNEL A reads <strong>MPE LOWER</strong>
+                        (a plain channel number, including 1, won't match &mdash; see setup step 1).
+                    </li>
+                    <li style="margin-bottom: 6px;">
+                        <strong>Only one knob responds:</strong> that knob was probably mapped with per-song
+                        MIDI learn. Un-learn it and set CHANNEL A instead, so every mapped parameter follows.
                     </li>
                 </ul>
 

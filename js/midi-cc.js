@@ -255,7 +255,10 @@ function loadMIDIFollowXML(xmlString) {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
         
-        const mappings = xmlDoc.querySelector('defaultCCMappings');
+        // Firmware PR #4526 (June 2026) renamed the tag from <defaultCCMappings>
+        // to <cc_mappings> (midi_follow.cpp: MIDI_DEFAULTS_CC_TAG); accept both
+        const mappings = xmlDoc.querySelector('cc_mappings') ||
+                         xmlDoc.querySelector('defaultCCMappings');
         if (!mappings) {
             throw new Error('Invalid MIDIFollow.XML format');
         }
