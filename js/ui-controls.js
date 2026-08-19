@@ -715,6 +715,8 @@ function updateModFXLabels() {
         const label = knob.closest('.control-group')?.querySelector('.control-label');
         if (label) label.textContent = text;
     });
+    // setting textContent wiped any cc badge on these labels - restore it
+    if (typeof updateLabelsForCCMappings === 'function') updateLabelsForCCMappings();
 }
 
 // The morph param does a different job per filter family (getMorphName in
@@ -733,6 +735,8 @@ function updateFilterMorphLabels() {
         const label = knob.closest('.control-group')?.querySelector('.control-label');
         if (label) label.textContent = morphName(select.value);
     });
+    // setting textContent wiped any cc badge on these labels - restore it
+    if (typeof updateLabelsForCCMappings === 'function') updateLabelsForCCMappings();
 }
 
 // Sync type (even/triplet/dotted) only applies when a sync level is set;

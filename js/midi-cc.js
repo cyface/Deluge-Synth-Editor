@@ -5,44 +5,70 @@
 // DEFAULT MIDI CC MAPPINGS (from Deluge MIDIFollow.XML)
 // ============================================================================
 
+// Firmware MIDIFollow.XML parameter names -> this app's data-param ids, for
+// the controls whose names differ (paramNameForFile in
+// modulation/params/param.cpp vs the knob ids here). Keys must stay in the
+// app's namespace or sendMIDICC/handleIncomingCC can't find the knob - a
+// firmware-named key is silently dead in both directions.
+const CC_PARAM_ALIASES = {
+    oscAPhaseWidth: 'oscAPulseWidth',
+    oscBPhaseWidth: 'oscBPulseWidth',
+    modulator1Volume: 'modulator1Amount',
+    modulator2Volume: 'modulator2Amount',
+    bitcrushAmount: 'bitCrush',
+    bassFreq: 'bassFrequency',
+    trebleFreq: 'trebleFrequency',
+    arpRate: 'arpeggiatorRate',
+    arpGate: 'arpeggiatorGate',
+    volumePostFX: 'volume' // no post-FX volume control; drive the volume knob
+};
+
+// Rename firmware-named keys to the app's names (see CC_PARAM_ALIASES).
+function normalizeCCMappingNames(mappings) {
+    const result = {};
+    Object.keys(mappings).forEach(name => {
+        result[CC_PARAM_ALIASES[name] || name] = mappings[name];
+    });
+    return result;
+}
+
 let ccMappings = {
     // Oscillator A
     oscAVolume: 21,
     oscAPitch: 12,
-    oscAPhaseWidth: 23,
+    oscAPulseWidth: 23,
     carrier1Feedback: 24,
     oscAWavetablePosition: 25,
-    
+
     // Noise
     noiseVolume: 41,
-    
+
     // Oscillator B
     oscBVolume: 26,
     oscBPitch: 13,
-    oscBPhaseWidth: 28,
+    oscBPulseWidth: 28,
     carrier2Feedback: 29,
     oscBWavetablePosition: 30,
-    
+
     // FM Modulators
-    modulator1Volume: 54,
+    modulator1Amount: 54,
     modulator1Pitch: 14,
     modulator1Feedback: 55,
-    modulator2Volume: 56,
+    modulator2Amount: 56,
     modulator2Pitch: 15,
     modulator2Feedback: 57,
-    
+
     // Master Controls
-    volume: 7,  // Master volume (also volumePostFX)
-    volumePostFX: 7,
+    volume: 7,  // firmware name: volumePostFX
     pitch: 3,
     pan: 10,
     portamento: 5,
-    
+
     // Effects
     sampleRateReduction: 63,
-    bitcrushAmount: 62,
+    bitCrush: 62,
     waveFold: 19,
-    stutterRate: 255, // Special: not used (255 means disabled)
+    stutterRate: 20, // ccToSoundParam[20] in midi_follow.cpp
     
     // Envelope 1
     env1Attack: 73,
@@ -72,13 +98,13 @@ let ccMappings = {
     
     // EQ
     bass: 86,
-    bassFreq: 84,
+    bassFrequency: 84,
     treble: 87,
-    trebleFreq: 85,
-    
+    trebleFrequency: 85,
+
     // Arpeggiator
-    arpRate: 51,
-    arpGate: 50,
+    arpeggiatorRate: 51,
+    arpeggiatorGate: 50,
     
     // LFOs
     lfo1Rate: 58,
@@ -266,20 +292,15 @@ function loadMIDIFollowXML(xmlString) {
         // Clear existing mappings (start fresh from XML)
         ccMappings = {};
         
-        // Extract all mappings from XML
+        // Extract all mappings from XML, translating firmware names to ours
         const children = mappings.children;
         for (let i = 0; i < children.length; i++) {
-            const paramName = children[i].tagName;
+            const paramName = CC_PARAM_ALIASES[children[i].tagName] || children[i].tagName;
             const ccNumber = parseInt(children[i].textContent, 10);
-            
+
             // Only add if it's a valid CC number (not 255 which means disabled)
             if (!isNaN(ccNumber) && ccNumber !== 255) {
                 ccMappings[paramName] = ccNumber;
-                
-                // Special mappings: create aliases for parameters that have different names in our UI
-                if (paramName === 'volumePostFX') {
-                    ccMappings['volume'] = ccNumber;
-                }
             }
         }
         
@@ -345,13 +366,24 @@ function closeMIDIFollowHelp() {
 }
 
 /**
- * Historically decorated every knob label with its MIDI CC number as a
- * superscript badge. The badges were visual noise, so labels now stay plain -
- * this just strips any that were added. MIDI CC sending/receiving itself is
- * unaffected (see ccMappings / sendMIDICC).
+ * Mark each control that has a live MIDI CC mapping with a small green "cc"
+ * badge (no CC numbers - those were tried as superscript badges once and were
+ * visual noise; the number lives in the badge's hover tooltip instead).
  */
 function updateLabelsForCCMappings() {
-    document.querySelectorAll('.control-label sup').forEach(sup => sup.remove());
+    document.querySelectorAll('.control-label sup, .control-label .cc-badge')
+        .forEach(el => el.remove());
+    document.querySelectorAll('[data-param]').forEach(el => {
+        const cc = ccMappings[el.dataset.param];
+        if (cc === undefined || cc === 255) return;
+        const label = el.closest('.control-group')?.querySelector('.control-label');
+        if (!label || label.querySelector('.cc-badge')) return;
+        const badge = document.createElement('span');
+        badge.className = 'cc-badge';
+        badge.textContent = 'cc';
+        badge.title = 'Live-tweakable over MIDI Follow (CC ' + cc + ')';
+        label.appendChild(badge);
+    });
 }
 
 /**
@@ -361,7 +393,8 @@ function initializeCCMappings() {
     const saved = localStorage.getItem('delugeCCMappings');
     if (saved) {
         try {
-            ccMappings = JSON.parse(saved);
+            // normalize in case the state was saved before the firmware-name fix
+            ccMappings = normalizeCCMappingNames(JSON.parse(saved));
             console.log('Loaded MIDI CC mappings from localStorage');
         } catch (error) {
             console.error('Failed to load saved CC mappings:', error);
