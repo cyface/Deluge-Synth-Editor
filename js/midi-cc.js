@@ -305,12 +305,19 @@ async function loadMIDIFollowFromDeluge() {
     
     try {
         showCommIndicator();
-        // Read file from root of SD card
-        const data = await readFile('/MIDIFollow.XML');
+        // The firmware keeps it at SETTINGS/MIDIFollow.XML (midi_follow.cpp: MIDI_FOLLOW_XML);
+        // fall back to the root for cards written by older firmware
+        let data;
+        try {
+            data = await readFile('/SETTINGS/MIDIFollow.XML');
+        } catch (settingsError) {
+            console.warn('No /SETTINGS/MIDIFollow.XML, trying card root:', settingsError);
+            data = await readFile('/MIDIFollow.XML');
+        }
         // Convert binary data to string
         const xmlString = new TextDecoder().decode(data);
         hideCommIndicator();
-        
+
         if (loadMIDIFollowXML(xmlString)) {
             // Save to localStorage for persistence
             saveMIDICCState();
@@ -318,8 +325,20 @@ async function loadMIDIFollowFromDeluge() {
     } catch (error) {
         hideCommIndicator();
         console.error('Failed to load MIDIFollow.XML from Deluge:', error);
-        showNotification('✗ Could not load MIDIFollow.XML from root directory. Using defaults.', true);
+        showNotification('✗ Could not load MIDIFollow.XML from /SETTINGS/ or root. Using defaults.', true);
     }
+}
+
+// ============================================================================
+// MIDI FOLLOW HELP MODAL
+// ============================================================================
+
+function openMIDIFollowHelp() {
+    document.getElementById('midiFollowHelpModal').classList.add('show');
+}
+
+function closeMIDIFollowHelp() {
+    document.getElementById('midiFollowHelpModal').classList.remove('show');
 }
 
 /**

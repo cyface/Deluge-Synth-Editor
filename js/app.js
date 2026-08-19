@@ -48,9 +48,30 @@ if (document.readyState === 'loading') {
 // INITIALIZATION
 // ============================================================================
 
+/**
+ * Safety net for control groups added without a for= on their label: associate
+ * the label with the group's field so screen readers announce it. The static
+ * markup already carries for= everywhere (DevTools' audit runs at parse time,
+ * so runtime fixes don't silence it - keep new markup labeled statically).
+ */
+function associateControlLabels(root = document) {
+    root.querySelectorAll('.control-group').forEach(group => {
+        const label = group.querySelector('label.control-label');
+        if (!label || label.htmlFor) return;
+        const field = group.querySelector('input, select, textarea');
+        if (!field) return;
+        if (field.id) {
+            label.htmlFor = field.id;
+        } else if (!field.hasAttribute('aria-label')) {
+            field.setAttribute('aria-label', label.textContent.trim());
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeKnobs();
     renderPatchCables();
+    associateControlLabels();
 
     // Initialize envelope canvases (values match what the defaults resolve to)
     drawEnvelope('env1Canvas', 0, 20, 50, 1, 0, 50);
@@ -61,6 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add change listeners to all inputs to update state
     const inputs = document.querySelectorAll('select, input[type="number"], input[type="text"], input[type="range"]');
     inputs.forEach(input => {
+        // Patch cable / mod knob controls have ids (for their labels) but are
+        // not synth parameters - they manage their own state in their renderers
+        if (input.closest('#patchCablesContainer, #modKnobsContainer')) return;
         if (input.id && input.id !== 'presetName' && input.id !== 'xmlFileInput') {
             // Sliders need 'input' too, so the readout tracks the drag rather
             // than only updating once the user lets go.

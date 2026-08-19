@@ -701,14 +701,14 @@ const DX7_OP_SECTIONS = [
 ];
 
 function dx7EditorNumberInput(off, max, value) {
-    return `<input type="number" class="dx7-p" data-off="${off}" min="0" max="${max}" value="${value}">`;
+    return `<input type="number" id="dx7p${off}" class="dx7-p" data-off="${off}" min="0" max="${max}" value="${value}">`;
 }
 
 function dx7EditorSelect(off, labels, value, valueOffset = 0) {
     const options = labels.map((label, i) =>
         `<option value="${i + valueOffset}" ${i + valueOffset === value ? 'selected' : ''}>${label}</option>`
     ).join('');
-    return `<select class="dx7-p" data-off="${off}">${options}</select>`;
+    return `<select id="dx7p${off}" class="dx7-p" data-off="${off}">${options}</select>`;
 }
 
 function dx7EditorCellHTML(row, opNum) {
@@ -806,7 +806,7 @@ function buildDX7EditorHTML(oscNum) {
     for (let op = 1; op <= 6; op++) {
         const enabled = (b[155] >> dx7OpEnableBit(op)) & 1;
         opHeaders.push(`<th>OP${op}<br><label style="font-weight: normal;" title="Operator on/off (Deluge extension)">` +
-            `<input type="checkbox" class="dx7-op-en" data-bit="${dx7OpEnableBit(op)}" ${enabled ? 'checked' : ''}> on</label></th>`);
+            `<input type="checkbox" id="dx7OpEn${op}" class="dx7-op-en" data-bit="${dx7OpEnableBit(op)}" ${enabled ? 'checked' : ''}> on</label></th>`);
     }
 
     let tableRows = '';
@@ -836,7 +836,7 @@ function buildDX7EditorHTML(oscNum) {
 
     const pitchEG = ['Rate 1', 'Rate 2', 'Rate 3', 'Rate 4', 'Level 1', 'Level 2', 'Level 3', 'Level 4']
         .map((label, i) =>
-            `<div class="control-group"><label class="control-label">${label}</label>${dx7EditorNumberInput(126 + i, 99, b[126 + i])}</div>`
+            `<div class="control-group"><label class="control-label" for="dx7p${126 + i}">${label}</label>${dx7EditorNumberInput(126 + i, 99, b[126 + i])}</div>`
         ).join('');
 
     return `
@@ -848,23 +848,23 @@ function buildDX7EditorHTML(oscNum) {
 
             <div class="controls-grid" style="margin-bottom: 15px;">
                 <div class="control-group">
-                    <label class="control-label">Patch Name (10 chars)</label>
-                    <input type="text" class="dx7-name" maxlength="10" value="${name.replace(/"/g, '&quot;')}">
+                    <label class="control-label" for="dx7Name">Patch Name (10 chars)</label>
+                    <input type="text" id="dx7Name" class="dx7-name" maxlength="10" value="${name.replace(/"/g, '&quot;')}">
                 </div>
                 <div class="control-group">
-                    <label class="control-label">Algorithm <span id="dx7CarrierHint" style="color: #888; font-weight: normal;"></span></label>
+                    <label class="control-label" for="dx7p134">Algorithm <span id="dx7CarrierHint" style="color: #888; font-weight: normal;"></span></label>
                     ${dx7EditorSelect(134, algoLabels, b[134] & 0x1F)}
                 </div>
                 <div class="control-group">
-                    <label class="control-label">Feedback (0-7)</label>
+                    <label class="control-label" for="dx7p135">Feedback (0-7)</label>
                     ${dx7EditorNumberInput(135, 7, b[135])}
                 </div>
                 <div class="control-group">
-                    <label class="control-label" title="Restart all operator phases on each note-on">Osc Key Sync</label>
-                    <label><input type="checkbox" class="dx7-p" data-off="136" ${b[136] ? 'checked' : ''}> on</label>
+                    <label class="control-label" for="dx7p136" title="Restart all operator phases on each note-on">Osc Key Sync</label>
+                    <label><input type="checkbox" id="dx7p136" class="dx7-p" data-off="136" ${b[136] ? 'checked' : ''}> on</label>
                 </div>
                 <div class="control-group">
-                    <label class="control-label">Transpose</label>
+                    <label class="control-label" for="dx7p144">Transpose</label>
                     ${dx7EditorSelect(144, transposeLabels, Math.min(b[144], 48))}
                 </div>
             </div>
@@ -882,31 +882,31 @@ function buildDX7EditorHTML(oscNum) {
             <h3 style="margin: 15px 0 10px 0;">LFO</h3>
             <div class="controls-grid">
                 <div class="control-group">
-                    <label class="control-label">Speed</label>
+                    <label class="control-label" for="dx7p137">Speed</label>
                     ${dx7EditorNumberInput(137, 99, b[137])}
                 </div>
                 <div class="control-group">
-                    <label class="control-label">Delay</label>
+                    <label class="control-label" for="dx7p138">Delay</label>
                     ${dx7EditorNumberInput(138, 99, b[138])}
                 </div>
                 <div class="control-group">
-                    <label class="control-label" title="Pitch modulation depth">Pitch Mod Depth</label>
+                    <label class="control-label" for="dx7p139" title="Pitch modulation depth">Pitch Mod Depth</label>
                     ${dx7EditorNumberInput(139, 99, b[139])}
                 </div>
                 <div class="control-group">
-                    <label class="control-label" title="Amplitude modulation depth">Amp Mod Depth</label>
+                    <label class="control-label" for="dx7p140" title="Amplitude modulation depth">Amp Mod Depth</label>
                     ${dx7EditorNumberInput(140, 99, b[140])}
                 </div>
                 <div class="control-group">
-                    <label class="control-label">Wave</label>
+                    <label class="control-label" for="dx7p142">Wave</label>
                     ${dx7EditorSelect(142, DX7_LFO_WAVES, Math.min(b[142], 5))}
                 </div>
                 <div class="control-group">
-                    <label class="control-label" title="Restart the LFO on each note-on">LFO Key Sync</label>
-                    <label><input type="checkbox" class="dx7-p" data-off="141" ${b[141] ? 'checked' : ''}> on</label>
+                    <label class="control-label" for="dx7p141" title="Restart the LFO on each note-on">LFO Key Sync</label>
+                    <label><input type="checkbox" id="dx7p141" class="dx7-p" data-off="141" ${b[141] ? 'checked' : ''}> on</label>
                 </div>
                 <div class="control-group">
-                    <label class="control-label">Pitch Mod Sens (0-7)</label>
+                    <label class="control-label" for="dx7p143">Pitch Mod Sens (0-7)</label>
                     ${dx7EditorNumberInput(143, 7, b[143])}
                 </div>
             </div>

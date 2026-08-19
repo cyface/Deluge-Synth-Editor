@@ -844,7 +844,12 @@ async function readFile(path, { silent = false } = {}) {
         if (!openResp.json['^open']) {
             throw new Error('Failed to open file for reading');
         }
-        const { fid, size } = openResp.json['^open'];
+        // A missing file is still answered with ^open, just with a FatFS error
+        // code (fid 0, size 0) - smSysex::openFile always replies
+        const { fid, size, err } = openResp.json['^open'];
+        if (err) {
+            throw new Error(`Failed to open ${path} for reading (err ${err})`);
+        }
         console.log('File opened with fid:', fid, 'size:', size);
         // 2. READ in 1024-byte chunks
         const result = new Uint8Array(size);

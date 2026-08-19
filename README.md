@@ -26,7 +26,6 @@ Edit all essential Deluge synth parameters:
 - Tabbed interface for organized editing
 - Real-time save path indicator
 - Multiple color themes (Orange, Blue, Green, Magenta)
-- PayPal donation button for supporting development
 - **Mobile responsive** - works on phones and tablets
 
 ### 🎲 **PatchMorph - Intelligent Patch Generator**

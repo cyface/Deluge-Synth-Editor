@@ -308,6 +308,18 @@ function formatModDestinationLabel(dest) {
         .replace(/\bMod F X\b/, 'Mod FX');
 }
 
+/**
+ * Hidden label associated with a dynamically built control, so the field has a
+ * real <label> (aria-label alone doesn't satisfy accessibility audits).
+ */
+function srOnlyLabel(forId, text) {
+    const label = document.createElement('label');
+    label.className = 'sr-only';
+    label.htmlFor = forId;
+    label.textContent = text;
+    return label;
+}
+
 function renderPatchCables() {
     const container = document.getElementById('patchCablesContainer');
     container.innerHTML = '';
@@ -322,6 +334,8 @@ function renderPatchCables() {
         // so a loaded-but-invalid cable still displays and gets the warning
         // below instead of silently jumping to a different source.
         const sourceSelect = document.createElement('select');
+        sourceSelect.id = `patchCableSource${index}`;
+        row.appendChild(srOnlyLabel(sourceSelect.id, `Cable ${index + 1} source`));
         modSources.forEach(source => {
             const option = document.createElement('option');
             option.value = source;
@@ -337,6 +351,8 @@ function renderPatchCables() {
 
         // Destination select
         const destSelect = document.createElement('select');
+        destSelect.id = `patchCableDest${index}`;
+        row.appendChild(srOnlyLabel(destSelect.id, `Cable ${index + 1} destination`));
         modDestinations.forEach(dest => {
             const option = document.createElement('option');
             option.value = dest;
@@ -356,6 +372,8 @@ function renderPatchCables() {
         amountContainer.style.flexDirection = 'column';
 
         const amountSlider = document.createElement('input');
+        amountSlider.id = `patchCableAmount${index}`;
+        amountContainer.appendChild(srOnlyLabel(amountSlider.id, `Cable ${index + 1} amount`));
         amountSlider.type = 'range';
         amountSlider.min = '-50';
         amountSlider.max = '50';
@@ -377,6 +395,8 @@ function renderPatchCables() {
         // Left unset on new cables so generateXML omits the attribute and the
         // firmware's per-source default applies; shown here as that default.
         const polaritySelect = document.createElement('select');
+        polaritySelect.id = `patchCablePolarity${index}`;
+        row.appendChild(srOnlyLabel(polaritySelect.id, `Cable ${index + 1} polarity`));
         [['bipolar', 'Bipolar'], ['unipolar', 'Unipolar']].forEach(([value, label]) => {
             const option = document.createElement('option');
             option.value = value;
@@ -396,6 +416,7 @@ function renderPatchCables() {
 
         // Remove button
         const removeBtn = document.createElement('button');
+        removeBtn.setAttribute('aria-label', `Remove cable ${index + 1}`);
         removeBtn.textContent = '✕';
         removeBtn.onclick = () => removePatchCable(index);
 
@@ -509,7 +530,11 @@ function renderModKnobs() {
             label.textContent = which === 1 ? 'Top' : 'Bottom';
             row.appendChild(label);
 
+            const knobName = `${pageName} ${which === 1 ? 'top' : 'bottom'} knob`;
+
             const paramSelect = document.createElement('select');
+            paramSelect.id = `modKnobParam${index}`;
+            row.appendChild(srOnlyLabel(paramSelect.id, `${knobName} parameter`));
             modKnobParams.forEach(param => {
                 const option = document.createElement('option');
                 option.value = param;
@@ -524,6 +549,8 @@ function renderModKnobs() {
             // the parameter directly, the way the default Reverb/Sidechain and
             // LFO/Pitch knobs do.
             const sourceSelect = document.createElement('select');
+            sourceSelect.id = `modKnobSource${index}`;
+            row.appendChild(srOnlyLabel(sourceSelect.id, `${knobName} modulation source`));
             sourceSelect.title = 'Control this parameter’s modulation depth from this source, instead of the parameter itself';
             ['', ...modSources.filter(s => s !== 'none')].forEach(source => {
                 const option = document.createElement('option');
@@ -537,6 +564,8 @@ function renderModKnobs() {
 
             if (knob.patchAmountFromSource) {
                 const secondSelect = document.createElement('select');
+                secondSelect.id = `modKnobSecondSource${index}`;
+                row.appendChild(srOnlyLabel(secondSelect.id, `${knobName} second modulation source`));
                 secondSelect.title = 'Second modulation source, for a cable modulating another cable';
                 ['', ...modSources.filter(s => s !== 'none')].forEach(source => {
                     const option = document.createElement('option');
