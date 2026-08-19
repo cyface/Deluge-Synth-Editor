@@ -1098,6 +1098,10 @@ function updateUIFromState() {
         updateModFXLabels();
     }
 
+    if (typeof updateFilterMorphLabels === 'function') {
+        updateFilterMorphLabels();
+    }
+
     if (typeof updateSyncTypeStates === 'function') {
         updateSyncTypeStates();
     }

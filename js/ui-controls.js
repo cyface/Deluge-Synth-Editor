@@ -717,6 +717,24 @@ function updateModFXLabels() {
     });
 }
 
+// The morph param does a different job per filter family (getMorphName in
+// filter_config.h): Morph on SVF, Drive on the LP ladders, FM on the HP
+// ladder. Mirror the Deluge's own knob names.
+function updateFilterMorphLabels() {
+    const morphName = (mode) => {
+        if (mode === 'SVF_Band' || mode === 'SVF_Notch') return 'Morph';
+        if (mode === 'HPLadder') return 'FM';
+        return 'Drive'; // 12dB / 24dB / 24dBDrive
+    };
+    [['lpfMode', 'lpfMorphKnob'], ['hpfMode', 'hpfMorphKnob']].forEach(([modeId, knobId]) => {
+        const select = document.getElementById(modeId);
+        const knob = document.getElementById(knobId);
+        if (!select || !knob) return;
+        const label = knob.closest('.control-group')?.querySelector('.control-label');
+        if (label) label.textContent = morphName(select.value);
+    });
+}
+
 // Sync type (even/triplet/dotted) only applies when a sync level is set;
 // with sync level Off the firmware never reads it, so gray it out.
 const SYNC_PAIR_PREFIXES = ['lfo1', 'lfo2', 'lfo3', 'lfo4', 'delay', 'sidechain', 'arp'];
@@ -746,6 +764,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const modFXTypeSelect = document.getElementById('modFXType');
     if (modFXTypeSelect) modFXTypeSelect.addEventListener('change', updateModFXLabels);
     updateModFXLabels();
+
+    ['lpfMode', 'hpfMode'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', updateFilterMorphLabels);
+    });
+    updateFilterMorphLabels();
 
     SYNC_PAIR_PREFIXES.forEach(prefix => {
         const el = document.getElementById(prefix + 'SyncLevel');
