@@ -1844,7 +1844,10 @@
             <div class="section">
                 <h2 class="section-title">Reverb</h2>
                 <div class="controls-grid">
-                    <div class="control-group knob-container">
+                    <!-- Presets store only the send level (sound.cpp writes just
+                         reverbAmount); model, room size, damping, etc. are
+                         song-level settings on the Deluge. -->
+                    <div class="control-group knob-container" title="Send level into the Deluge's shared reverb. The other reverb settings (model, room size, damping, width, etc.) are per-song on the Deluge and not part of a synth preset.">
                         <span class="control-label">Amount</span>
                         <div class="knob" id="reverbAmountKnob" data-param="reverbAmount" data-min="0" data-max="50"></div>
                         <div class="knob-value" id="reverbAmountValue">0</div>
@@ -1881,8 +1884,8 @@
             <div class="section">
                 <h2 class="section-title">Distortion</h2>
                 <div class="controls-grid">
-                    <div class="control-group knob-container">
-                        <span class="control-label">Sample Rate Reduction</span>
+                    <div class="control-group knob-container" title="Sample rate reduction — the Deluge's menus call this Decimation.">
+                        <span class="control-label">Decimation</span>
                         <div class="knob" id="sampleRateReductionKnob" data-param="sampleRateReduction" data-min="0" data-max="50"></div>
                         <div class="knob-value" id="sampleRateReductionValue">0</div>
                     </div>
